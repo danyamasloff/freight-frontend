@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import {
-    Truck,
     Eye,
     EyeOff,
     Mail,
@@ -13,23 +12,16 @@ import {
     Loader2,
     AlertCircle,
     CheckCircle,
-    UserPlus
+    UserPlus,
 } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
+import { InteractiveHoverButton } from '@/components/magicui/interactive-hover-button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from '@/components/ui/form'
 import { useToast } from '@/hooks/use-toast'
-import { useRegisterMutation } from '@/shared/api/authSlice'
+import { useRegisterMutation } from '@/shared/api/authSlice.ts'
+import Blackhole from '@/components/ui/blackhole'
 
 const registerSchema = z.object({
     username: z.string()
@@ -64,7 +56,11 @@ export function RegisterPage() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [registrationSuccess, setRegistrationSuccess] = useState(false)
 
-    const form = useForm<RegisterFormData>({
+    const {
+        register: registerField,
+        handleSubmit,
+        formState: { errors, isSubmitting }
+    } = useForm<RegisterFormData>({
         resolver: zodResolver(registerSchema),
         defaultValues: {
             username: '',
@@ -108,226 +104,222 @@ export function RegisterPage() {
 
     if (registrationSuccess) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-grid-white/10 bg-grid-16" />
-
-                <Card className="backdrop-blur-sm bg-white/95 shadow-2xl border-0 w-full max-w-md">
-                    <CardContent className="text-center py-16">
-                        <div className="flex justify-center mb-6">
-                            <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-4 rounded-full shadow-lg">
-                                <CheckCircle className="h-12 w-12 text-white" />
+            <>
+                <Blackhole
+                    strokeColor="oklch(0.55 0.12 60)"
+                    numberOfLines={60}
+                    numberOfDiscs={40}
+                    particleRGBColor={[72, 187, 120]}
+                />
+                <div className="relative min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-green-50/80 to-emerald-50/40 dark:from-green-900/80 dark:to-emerald-900/40">
+                    <Card className="claude-card backdrop-blur-lg bg-card/95 shadow-2xl w-full max-w-md">
+                        <CardContent className="text-center py-16">
+                            <div className="flex justify-center mb-6">
+                                <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-4 rounded-full shadow-lg">
+                                    <CheckCircle className="h-12 w-12 text-white" />
+                                </div>
                             </div>
-                        </div>
 
-                        <h2 className="text-2xl font-bold text-green-800 mb-4">
-                            Регистрация завершена!
-                        </h2>
-                        <p className="text-muted-foreground mb-6">
-                            Ваш аккаунт был успешно создан.
-                            Вы будете перенаправлены на страницу входа.
-                        </p>
-                        <div className="flex items-center justify-center">
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            <span className="text-sm">Перенаправление...</span>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                            <h2 className="text-2xl font-bold text-green-700 dark:text-green-400 mb-4">
+                                Регистрация завершена!
+                            </h2>
+                            <p className="text-muted-foreground mb-6">
+                                Ваш аккаунт был успешно создан.
+                                Вы будете перенаправлены на страницу входа.
+                            </p>
+                            <div className="flex items-center justify-center">
+                                <Loader2 className="h-4 w-4 animate-spin mr-2 text-green-600" />
+                                <span className="text-sm">Перенаправление...</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </>
         )
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-800 to-pink-900 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-grid-white/10 bg-grid-16" />
+        <>
+            {/* Фоновый компонент в цветах Claude */}
+            <Blackhole
+                strokeColor="oklch(0.60 0.15 35)"
+                numberOfLines={60}
+                numberOfDiscs={40}
+                particleRGBColor={[153, 79, 57]}
+            />
 
-            <div className="relative w-full max-w-lg">
-                <Card className="backdrop-blur-sm bg-white/95 shadow-2xl border-0">
-                    <CardHeader className="text-center pb-6 pt-8">
-                        <div className="flex justify-center mb-6">
-                            <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-4 rounded-2xl shadow-lg">
-                                <UserPlus className="h-8 w-8 text-white" />
+            {/* Основной контент */}
+            <div className="relative min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background/80 to-accent/20">
+                <div className="relative w-full max-w-lg">
+                    <Card className="claude-card backdrop-blur-lg bg-card/95 shadow-2xl">
+                        <CardHeader className="text-center pb-6 pt-8">
+                            <div className="flex justify-center mb-6">
+                                <div className="claude-gradient-secondary p-4 rounded-2xl shadow-lg">
+                                    <UserPlus className="h-8 w-8 text-white" />
+                                </div>
                             </div>
-                        </div>
 
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                            Регистрация
-                        </h1>
-                        <p className="text-sm text-muted-foreground mt-2">
-                            Создайте аккаунт в TruckNavigator
-                        </p>
-                    </CardHeader>
+                            <h1 className="text-3xl font-bold claude-gradient-primary bg-clip-text text-transparent">
+                                Регистрация
+                            </h1>
+                            <p className="text-sm text-muted-foreground mt-2">
+                                Создайте аккаунт в TruckNavigator
+                            </p>
+                        </CardHeader>
 
-                    <CardContent className="space-y-6">
-                        {errorMessage && (
-                            <Alert variant="destructive">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>{errorMessage}</AlertDescription>
-                            </Alert>
-                        )}
+                        <CardContent className="space-y-6">
+                            {errorMessage && (
+                                <Alert variant="destructive">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertDescription>{errorMessage}</AlertDescription>
+                                </Alert>
+                            )}
 
-                        <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="firstName"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Имя</FormLabel>
-                                                <FormControl>
-                                                    <div className="relative">
-                                                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                                        <Input
-                                                            placeholder="Иван"
-                                                            className="pl-10"
-                                                            disabled={isLoading}
-                                                            {...field}
-                                                        />
-                                                    </div>
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Имя</label>
+                                        <div className="relative">
+                                            <User className="absolute left-3 top-3 h-4 w-4 text-primary" />
+                                            <Input
+                                                {...registerField('firstName')}
+                                                placeholder="Иван"
+                                                className="pl-10 border-border focus:border-primary focus:ring-primary/20"
+                                                disabled={isLoading}
+                                                autoComplete="given-name"
+                                            />
+                                        </div>
+                                        {errors.firstName && (
+                                            <p className="text-xs text-destructive">
+                                                {errors.firstName.message}
+                                            </p>
                                         )}
-                                    />
+                                    </div>
 
-                                    <FormField
-                                        control={form.control}
-                                        name="lastName"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Фамилия</FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        placeholder="Иванов"
-                                                        disabled={isLoading}
-                                                        {...field}
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Фамилия</label>
+                                        <Input
+                                            {...registerField('lastName')}
+                                            placeholder="Иванов"
+                                            className="border-border focus:border-primary focus:ring-primary/20"
+                                            disabled={isLoading}
+                                            autoComplete="family-name"
+                                        />
+                                        {errors.lastName && (
+                                            <p className="text-xs text-destructive">
+                                                {errors.lastName.message}
+                                            </p>
                                         )}
-                                    />
+                                    </div>
                                 </div>
 
-                                <FormField
-                                    control={form.control}
-                                    name="username"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Имя пользователя</FormLabel>
-                                            <FormControl>
-                                                <div className="relative">
-                                                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                                    <Input
-                                                        placeholder="ivan.ivanov"
-                                                        className="pl-10"
-                                                        disabled={isLoading}
-                                                        {...field}
-                                                    />
-                                                </div>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Имя пользователя</label>
+                                    <div className="relative">
+                                        <User className="absolute left-3 top-3 h-4 w-4 text-primary" />
+                                        <Input
+                                            {...registerField('username')}
+                                            placeholder="ivan.ivanov"
+                                            className="pl-10 border-border focus:border-primary focus:ring-primary/20"
+                                            disabled={isLoading}
+                                            autoComplete="username"
+                                        />
+                                    </div>
+                                    {errors.username && (
+                                        <p className="text-sm text-destructive">
+                                            {errors.username.message}
+                                        </p>
                                     )}
-                                />
+                                </div>
 
-                                <FormField
-                                    control={form.control}
-                                    name="email"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Email</FormLabel>
-                                            <FormControl>
-                                                <div className="relative">
-                                                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                                    <Input
-                                                        type="email"
-                                                        placeholder="ivan@example.com"
-                                                        className="pl-10"
-                                                        disabled={isLoading}
-                                                        {...field}
-                                                    />
-                                                </div>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Email</label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3 top-3 h-4 w-4 text-primary" />
+                                        <Input
+                                            {...registerField('email')}
+                                            type="email"
+                                            placeholder="ivan@example.com"
+                                            className="pl-10 border-border focus:border-primary focus:ring-primary/20"
+                                            disabled={isLoading}
+                                            autoComplete="email"
+                                        />
+                                    </div>
+                                    {errors.email && (
+                                        <p className="text-sm text-destructive">
+                                            {errors.email.message}
+                                        </p>
                                     )}
-                                />
+                                </div>
 
-                                <FormField
-                                    control={form.control}
-                                    name="password"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Пароль</FormLabel>
-                                            <FormControl>
-                                                <div className="relative">
-                                                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                                    <Input
-                                                        type={showPassword ? 'text' : 'password'}
-                                                        placeholder="Введите пароль"
-                                                        className="pl-10 pr-10"
-                                                        disabled={isLoading}
-                                                        {...field}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setShowPassword(!showPassword)}
-                                                        className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-                                                        disabled={isLoading}
-                                                    >
-                                                        {showPassword ? (
-                                                            <EyeOff className="h-4 w-4" />
-                                                        ) : (
-                                                            <Eye className="h-4 w-4" />
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Пароль</label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-3 top-3 h-4 w-4 text-primary" />
+                                        <Input
+                                            {...registerField('password')}
+                                            type={showPassword ? 'text' : 'password'}
+                                            placeholder="Введите пароль"
+                                            className="pl-10 pr-10 border-border focus:border-primary focus:ring-primary/20"
+                                            disabled={isLoading}
+                                            autoComplete="new-password"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-3 text-primary hover:text-primary/80 transition-colors"
+                                            disabled={isLoading}
+                                        >
+                                            {showPassword ? (
+                                                <EyeOff className="h-4 w-4" />
+                                            ) : (
+                                                <Eye className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    {errors.password && (
+                                        <p className="text-sm text-destructive">
+                                            {errors.password.message}
+                                        </p>
                                     )}
-                                />
+                                </div>
 
-                                <FormField
-                                    control={form.control}
-                                    name="confirmPassword"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Подтвердите пароль</FormLabel>
-                                            <FormControl>
-                                                <div className="relative">
-                                                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                                    <Input
-                                                        type={showConfirmPassword ? 'text' : 'password'}
-                                                        placeholder="Повторите пароль"
-                                                        className="pl-10 pr-10"
-                                                        disabled={isLoading}
-                                                        {...field}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                        className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-                                                        disabled={isLoading}
-                                                    >
-                                                        {showConfirmPassword ? (
-                                                            <EyeOff className="h-4 w-4" />
-                                                        ) : (
-                                                            <Eye className="h-4 w-4" />
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Подтвердите пароль</label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-3 top-3 h-4 w-4 text-primary" />
+                                        <Input
+                                            {...registerField('confirmPassword')}
+                                            type={showConfirmPassword ? 'text' : 'password'}
+                                            placeholder="Повторите пароль"
+                                            className="pl-10 pr-10 border-border focus:border-primary focus:ring-primary/20"
+                                            disabled={isLoading}
+                                            autoComplete="new-password"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            className="absolute right-3 top-3 text-primary hover:text-primary/80 transition-colors"
+                                            disabled={isLoading}
+                                        >
+                                            {showConfirmPassword ? (
+                                                <EyeOff className="h-4 w-4" />
+                                            ) : (
+                                                <Eye className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    {errors.confirmPassword && (
+                                        <p className="text-sm text-destructive">
+                                            {errors.confirmPassword.message}
+                                        </p>
                                     )}
-                                />
+                                </div>
 
-                                <Button
+                                <InteractiveHoverButton
                                     type="submit"
-                                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                                    disabled={isLoading}
+                                    disabled={isLoading || isSubmitting}
+                                    className="w-full interactive-button-optimized"
                                     size="lg"
                                 >
                                     {isLoading ? (
@@ -338,30 +330,30 @@ export function RegisterPage() {
                                     ) : (
                                         'Зарегистрироваться'
                                     )}
-                                </Button>
+                                </InteractiveHoverButton>
                             </form>
-                        </Form>
 
-                        <div className="text-center">
-                            <p className="text-sm text-muted-foreground">
-                                Уже есть аккаунт?{' '}
-                                <Link
-                                    to="/login"
-                                    className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
-                                >
-                                    Войти
-                                </Link>
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
+                            <div className="text-center">
+                                <p className="text-sm text-muted-foreground">
+                                    Уже есть аккаунт?{' '}
+                                    <Link
+                                        to="/login"
+                                        className="font-medium text-primary hover:text-primary/80 transition-colors"
+                                    >
+                                        Войти
+                                    </Link>
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                <div className="text-center mt-8">
-                    <p className="text-sm text-white/70">
-                        © 2024 TruckNavigator. Все права защищены.
-                    </p>
+                    <div className="text-center mt-8">
+                        <p className="text-sm text-muted-foreground">
+                            © 2025 TruckNavigator. Все права защищены.
+                        </p>
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     )
 }

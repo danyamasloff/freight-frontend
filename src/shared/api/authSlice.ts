@@ -1,13 +1,7 @@
-import { apiSlice } from './apiSlice'
-import type {
-    LoginRequest,
-    RegistrationRequest,
-    JwtResponse,
-    RefreshTokenRequest,
-    MessageResponse
-} from '@/shared/types/api'
+import { apiSlice } from './apiSlice';
+import type { JwtResponse, LoginRequest, RegistrationRequest, RefreshTokenRequest, MessageResponse } from '@/shared/types/api';
 
-export const authSlice = apiSlice.injectEndpoints({
+export const authApi = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
         login: builder.mutation<JwtResponse, LoginRequest>({
             query: (credentials) => ({
@@ -37,11 +31,11 @@ export const authSlice = apiSlice.injectEndpoints({
             }),
         }),
     }),
-})
+});
 
 export const {
     useLoginMutation,
     useRegisterMutation,
     useLogoutMutation,
     useRefreshTokenMutation,
-} = authSlice
+} = authApi;
