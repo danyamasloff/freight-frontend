@@ -31,7 +31,7 @@ export interface RegistrationRequest {
 }
 
 export interface JwtResponse {
-    accessToken: string
+    token: string
     refreshToken: string
     username: string
     expiresIn: number

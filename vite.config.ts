@@ -28,6 +28,9 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    hmr: {
+      port: 3001
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
@@ -41,6 +44,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
+          canvas: ['@/components/ui/blackhole'],
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
           ui: ['@radix-ui/react-slot', 'framer-motion'],

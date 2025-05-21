@@ -7,6 +7,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+    console.log('AuthProvider rendering')
     const dispatch = useAppDispatch()
 
     // Restore authentication state from localStorage on app start
