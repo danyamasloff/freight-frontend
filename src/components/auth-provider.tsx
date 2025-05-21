@@ -1,30 +1,21 @@
 import { useEffect } from 'react'
-import { useAppDispatch } from '@/shared/hooks/redux'
-import { setCredentials } from '@/app/store/authSlice'
+import { useAppDispatch, useAppSelector } from '@/shared/hooks/redux'
+import { initializeAuthFromStorage } from '@/shared/utils/auth-init'
 
 interface AuthProviderProps {
     children: React.ReactNode
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-    console.log('AuthProvider rendering')
     const dispatch = useAppDispatch()
+    const { isInitialized } = useAppSelector(state => state.auth)
 
-    // Restore authentication state from localStorage on app start
     useEffect(() => {
-        const token = localStorage.getItem('token')
-        const refreshToken = localStorage.getItem('refreshToken')
-        const username = localStorage.getItem('username')
-
-        if (token && refreshToken && username) {
-            dispatch(setCredentials({
-                accessToken: token,
-                refreshToken,
-                username,
-                expiresIn: 0 // Will be handled by API middleware
-            }))
+        // Явно инициализируем auth состояние при монтировании компонента
+        if (!isInitialized) {
+            initializeAuthFromStorage()
         }
-    }, [dispatch])
+    }, [dispatch, isInitialized])
 
     return <>{children}</>
 }

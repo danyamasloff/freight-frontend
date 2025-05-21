@@ -1,21 +1,24 @@
 import { Navigate } from 'react-router-dom'
 import { useAppSelector } from '@/shared/hooks/redux'
+import { Loader2 } from 'lucide-react'
 
 interface ProtectedRouteProps {
     children: React.ReactNode
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-    // Проверяем в Redux store
-    const { isAuthenticated } = useAppSelector(state => state.auth)
+    const { isAuthenticated, isInitialized } = useAppSelector(state => state.auth)
 
-    // Дополнительная проверка localStorage на случай, если Redux не инициализирован
-    const hasLocalToken = !!localStorage.getItem('token')
+    if (!isInitialized) {
+        return (
+            <div className="flex h-screen w-screen items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Инициализация...</span>
+            </div>
+        )
+    }
 
-    console.log('ProtectedRoute check:', { isAuthenticated, hasLocalToken })
-
-    if (!isAuthenticated && !hasLocalToken) {
-        console.warn('Redirecting to login: not authenticated')
+    if (!isAuthenticated) {
         return <Navigate to="/login" replace />
     }
 
