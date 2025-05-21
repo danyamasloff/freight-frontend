@@ -1,5 +1,5 @@
 import { store } from '@/app/store'
-import { setCredentials } from '@/app/store/authSlice'
+import { setCredentials, initializeComplete } from '@/app/store/authSlice'
 
 export const initializeAuthFromStorage = () => {
     const token = localStorage.getItem('token')
@@ -19,9 +19,11 @@ export const initializeAuthFromStorage = () => {
             expiresIn: 0
         }))
 
+        store.dispatch(initializeComplete())
         return true
     }
 
     console.warn('No valid token found in localStorage')
+    store.dispatch(initializeComplete())
     return false
 }

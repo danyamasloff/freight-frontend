@@ -6,13 +6,15 @@ interface AuthState {
     refreshToken: string | null
     username: string | null
     isAuthenticated: boolean
+    isInitialized: boolean
 }
 
 const initialState: AuthState = {
-    token: localStorage.getItem('token'),
-    refreshToken: localStorage.getItem('refreshToken'),
-    username: localStorage.getItem('username'),
-    isAuthenticated: !!localStorage.getItem('token'),
+    token: null,
+    refreshToken: null,
+    username: null,
+    isAuthenticated: false,
+    isInitialized: false
 }
 
 const authSlice = createSlice({
@@ -49,8 +51,11 @@ const authSlice = createSlice({
             state.token = action.payload
             localStorage.setItem('token', action.payload)
         },
+        initializeComplete: (state) => {
+            state.isInitialized = true
+        }
     },
 })
 
-export const { setCredentials, clearCredentials, setToken } = authSlice.actions
+export const { setCredentials, clearCredentials, setToken, initializeComplete } = authSlice.actions
 export { authSlice }
