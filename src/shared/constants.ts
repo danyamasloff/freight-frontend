@@ -11,20 +11,34 @@ export const ROUTES = {
     LOGIN: '/login',
     REGISTER: '/register',
     DASHBOARD: '/dashboard',
+
+    // Маршруты
     ROUTES: '/routes',
     ROUTE_DETAILS: '/routes/:id',
     ROUTE_CREATE: '/routes/create',
+
+    // Водители
     DRIVERS: '/drivers',
     DRIVER_DETAILS: '/drivers/:id',
+    DRIVER_CREATE: '/drivers/create',
+    DRIVER_EDIT: '/drivers/edit/:id',
+    DRIVER_RTO_ANALYSIS: '/drivers/:id/rto-analysis',
+    DRIVER_PERFORMANCE: '/drivers/:id/performance',
+
+    // Транспорт
     FLEET: '/fleet',
     TRUCK_DETAILS: '/fleet/:id',
+
+    // Аналитика
     ANALYTICS: '/analytics',
     COMPLIANCE: '/compliance',
+    SETTINGS: '/settings',
+
+    // Грузы
     CARGO: '/cargo',
     CARGO_DETAILS: '/cargo/:id',
     CARGO_CREATE: '/cargo/create',
     CARGO_EDIT: '/cargo/edit/:id',
-    SETTINGS: '/settings',
 } as const
 
 export const QUERY_KEYS = {
