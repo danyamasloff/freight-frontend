@@ -8,6 +8,8 @@ export const APP_CONFIG = {
 
 export const ROUTES = {
     HOME: '/',
+    LOGIN: '/login',
+    REGISTER: '/register',
     DASHBOARD: '/dashboard',
     ROUTES: '/routes',
     ROUTE_DETAILS: '/routes/:id',
@@ -19,6 +21,9 @@ export const ROUTES = {
     ANALYTICS: '/analytics',
     COMPLIANCE: '/compliance',
     CARGO: '/cargo',
+    CARGO_DETAILS: '/cargo/:id',
+    CARGO_CREATE: '/cargo/create',
+    CARGO_EDIT: '/cargo/edit/:id',
     SETTINGS: '/settings',
 } as const
 

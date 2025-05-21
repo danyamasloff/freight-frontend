@@ -1,0 +1,1 @@
+export {CargoDetailPage} from '@/features/cargo/cargo-detail-page';
