@@ -1,32 +1,30 @@
-import {Routes, Route, Navigate} from 'react-router-dom';
-import {Layout} from '@/widgets/layout';
-import {ProtectedRoute} from '@/components/protected-route';
-import {LoginPage} from '@/pages/auth/login';
-import {RegisterPage} from '@/pages/auth/register';
-import {DashboardPage} from '@/pages/dashboard';
-import {RouteDetailsPage} from '@/pages/routes/route-details'
+import {Routes, Route, Navigate} from 'react-router-dom'
+import {Layout} from '@/widgets/layout'
+import {ProtectedRoute} from '@/components/protected-route'
+import {LoginPage} from '@/pages/auth/login'
+import {RegisterPage} from '@/pages/auth/register'
+import {DashboardPage} from '@/pages/dashboard'
+import {RoutesPage} from '@/pages/routes/index'
+import {RouteDetailPage} from '@/pages/routes/route-details'
 import {CreateRoutePage} from '@/pages/routes/create-route'
 import {
     DriversPage,
-    DriverDetailsPage,
+    DriverDetailPage,
     CreateDriverPage,
     EditDriverPage,
-    DriverRtoAnalysisPage,
-    DriverPerformancePage
 } from '@/pages/drivers'
-import {AnalyticsPage} from '@/pages/analytics';
-import {CompliancePage} from '@/pages/compliance';
+import {AnalyticsPage} from '@/pages/analytics'
+import {CompliancePage} from '@/pages/compliance'
 import {
     FleetPage,
     VehicleDetailsPage,
     CreateVehiclePage,
-    EditVehiclePage
+    EditVehiclePage,
 } from '@/pages/fleet/exports';
 import {CargoPage} from '@/pages/cargo/cargo-page'
 import {CargoDetailPage} from '@/features/cargo/cargo-detail-page'
 import {CreateCargoPage} from '@/pages/cargo/create-cargo'
 import {EditCargoPage} from '@/pages/cargo/edit-cargo'
-/*import {RoutesPage} from '@/pages/routes/index'*/
 import {ROUTES} from '@/shared/constants';
 
 export function AppRouter() {
@@ -44,16 +42,14 @@ export function AppRouter() {
 
                 {/* Маршруты */}
                 <Route path={ROUTES.ROUTES} element={<RoutesPage/>}/>
-                <Route path={ROUTES.ROUTE_DETAILS} element={<RouteDetailsPage/>}/>
+                <Route path={ROUTES.ROUTE_DETAILS} element={<RouteDetailPage/>}/>
                 <Route path={ROUTES.ROUTE_CREATE} element={<CreateRoutePage/>}/>
 
                 {/* Водители */}
                 <Route path={ROUTES.DRIVERS} element={<DriversPage/>}/>
-                <Route path={ROUTES.DRIVER_DETAILS} element={<DriverDetailsPage/>}/>
+                <Route path={ROUTES.DRIVER_DETAILS} element={<DriverDetailPage/>}/>
                 <Route path={ROUTES.DRIVER_CREATE} element={<CreateDriverPage/>}/>
                 <Route path={ROUTES.DRIVER_EDIT} element={<EditDriverPage/>}/>
-                <Route path={ROUTES.DRIVER_RTO_ANALYSIS} element={<DriverRtoAnalysisPage/>}/>
-                <Route path={ROUTES.DRIVER_PERFORMANCE} element={<DriverPerformancePage/>}/>
 
                 {/* Транспорт */}
                 <Route path={ROUTES.FLEET} element={<FleetPage/>}/>
