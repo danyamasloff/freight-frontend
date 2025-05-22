@@ -12,7 +12,6 @@ import {
     MapPin,
     Phone,
     Mail,
-    User,
     XCircle,
     AlertTriangle,
     CreditCard,
@@ -78,6 +77,7 @@ export function DriverDetailPage() {
     }
 
     const getDriverInitials = (name: string) => {
+        if (!name) return 'NN'
         return name
             .split(' ')
             .map(part => part.charAt(0))
@@ -93,9 +93,18 @@ export function DriverDetailPage() {
 
     const getStatusBadge = (status: DrivingStatus) => {
         const config = DRIVER_STATUS_CONFIG[status]
+        if (!config) {
+            return (
+                <Badge variant="secondary">
+                    <span className="mr-1">❓</span>
+                    Неизвестно
+                </Badge>
+            )
+        }
+
         return (
-            <Badge variant={status === 'DRIVING' ? "default" : "secondary"} className="gap-1">
-                <span>{config.icon}</span>
+            <Badge variant={status === DrivingStatus.DRIVING ? "default" : "secondary"}>
+                <span className="mr-1">{config.icon}</span>
                 {config.label}
             </Badge>
         )

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft, User, ChevronRight } from 'lucide-react'
+import { User, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DriverForm } from './driver-form'
 

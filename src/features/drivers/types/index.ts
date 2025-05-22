@@ -1,19 +1,68 @@
 import { z } from 'zod'
-import type {
-    DriverSummary,
-    DriverDetail,
-    DrivingStatus,
-    DriverRestAnalysis,
-    RestStopRecommendation
-} from '@/shared/types/api'
 
-// Re-export API types
-export type {
-    DriverSummary,
-    DriverDetail,
-    DrivingStatus,
-    DriverRestAnalysis,
-    RestStopRecommendation
+// Import types from correct API types location based on your project structure
+export enum DrivingStatus {
+    DRIVING = 'DRIVING',
+    REST_BREAK = 'REST_BREAK',
+    DAILY_REST = 'DAILY_REST',
+    WEEKLY_REST = 'WEEKLY_REST',
+    OFF_DUTY = 'OFF_DUTY',
+    OTHER_WORK = 'OTHER_WORK',
+    AVAILABILITY = 'AVAILABILITY'
+}
+
+// Driver interfaces based on your API structure
+export interface DriverSummary {
+    id: number
+    name: string
+    licenseNumber: string
+    phone: string
+    email?: string
+    experience?: number
+    rating?: number
+    status: DrivingStatus
+    currentLocation?: {
+        lat: number
+        lng: number
+        address?: string
+    }
+}
+
+export interface DriverDetail extends DriverSummary {
+    firstName: string
+    lastName: string
+    licenseCategory?: string[]
+    licenseIssueDate?: string
+    licenseExpiryDate?: string
+    medicalCertificateExpiryDate?: string
+    dangerousGoodsPermitExpiryDate?: string
+    hourlyRate?: number
+    kmRate?: number
+    notes?: string
+    workTimeStart?: string
+    workTimeEnd?: string
+    createdAt: string
+    updatedAt: string
+}
+
+export interface RestStopRecommendation {
+    location: {
+        lat: number
+        lng: number
+    }
+    recommendedArrivalTime: string
+    restDuration: number
+    reason: string
+    facilityTypes?: string[]
+}
+
+export interface DriverRestAnalysis {
+    compliant: boolean
+    warnings: string[]
+    restStopRecommendations?: RestStopRecommendation[]
+    totalDrivingTime: number
+    totalRestTime: number
+    nextMandatoryRest: string
 }
 
 // Form schemas
@@ -146,6 +195,20 @@ export const DRIVER_STATUS_CONFIG = {
         bgColor: 'bg-gray-50',
         icon: '⏸️'
     },
+    [DrivingStatus.OTHER_WORK]: {
+        label: 'Другая работа',
+        color: 'bg-orange-500',
+        textColor: 'text-orange-700',
+        bgColor: 'bg-orange-50',
+        icon: '🔧'
+    },
+    [DrivingStatus.AVAILABILITY]: {
+        label: 'В ожидании',
+        color: 'bg-cyan-500',
+        textColor: 'text-cyan-700',
+        bgColor: 'bg-cyan-50',
+        icon: '⏳'
+    }
 } as const
 
 // Working time regulations (EU)

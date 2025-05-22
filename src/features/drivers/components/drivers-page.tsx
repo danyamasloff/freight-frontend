@@ -100,6 +100,7 @@ export function DriversPage() {
     }) || []
 
     const getDriverInitials = (name: string) => {
+        if (!name) return 'NN'
         return name
             .split(' ')
             .map(part => part.charAt(0))
@@ -110,6 +111,15 @@ export function DriversPage() {
 
     const getStatusBadge = (status: DrivingStatus) => {
         const config = DRIVER_STATUS_CONFIG[status]
+        if (!config) {
+            return (
+                <Badge variant="secondary">
+                    <span className="mr-1">❓</span>
+                    Неизвестно
+                </Badge>
+            )
+        }
+
         return (
             <Badge variant={status === DrivingStatus.DRIVING ? "default" : "secondary"}>
                 <span className="mr-1">{config.icon}</span>

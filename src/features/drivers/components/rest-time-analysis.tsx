@@ -1,19 +1,18 @@
-import { useState, useEffect } from 'react'
-import { useAnalyzeRestTimeMutation } from '@/shared/api/driversSlice'
-import { useToast } from '@/hooks/use-toast'
+import {useState, useEffect} from 'react'
+import {useAnalyzeRouteRestTimeMutation} from '@/shared/api/driversSlice'
+import {useToast} from '@/hooks/use-toast'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
+import {Button} from '@/components/ui/button'
+import {Badge} from '@/components/ui/badge'
+import {Alert, AlertDescription} from '@/components/ui/alert'
+import {Progress} from '@/components/ui/progress'
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {
     AlertTriangle,
     CheckCircle2,
     Clock,
     MapPin,
-    Calendar,
     Loader2,
     RefreshCw,
     TrendingUp,
@@ -22,9 +21,9 @@ import {
     Bed
 } from 'lucide-react'
 
-import { formatDistance, formatDuration } from '@/shared/utils/format'
-import type { RouteResponse } from '@/shared/types/api'
-import type { RestTimeAnalysisResult, WORKING_TIME_LIMITS } from '../types'
+import {formatDuration} from '@/shared/utils/format'
+import type {RouteResponse} from '@/shared/types/api'
+import type {RestTimeAnalysisResult} from '../types'
 
 interface RestTimeAnalysisProps {
     driverId: number
@@ -39,11 +38,11 @@ export function RestTimeAnalysis({
                                      departureTime,
                                      className
                                  }: RestTimeAnalysisProps) {
-    const { toast } = useToast()
+    const {toast} = useToast()
     const [analysisResult, setAnalysisResult] = useState<RestTimeAnalysisResult | null>(null)
     const [selectedRestStop, setSelectedRestStop] = useState<number>(0)
 
-    const [analyzeRestTime, { isLoading: isAnalyzing }] = useAnalyzeRestTimeMutation()
+    const [analyzeRestTime, {isLoading: isAnalyzing}] = useAnalyzeRouteRestTimeMutation()
 
     const runAnalysis = async () => {
         if (!route || !departureTime) {
@@ -136,13 +135,13 @@ export function RestTimeAnalysis({
     const getRiskLevelConfig = (level: RestTimeAnalysisResult['riskLevel']) => {
         switch (level) {
             case 'LOW':
-                return { color: 'bg-green-500', textColor: 'text-green-700', bgColor: 'bg-green-50', label: 'Низкий' }
+                return {color: 'bg-green-500', textColor: 'text-green-700', bgColor: 'bg-green-50', label: 'Низкий'}
             case 'MEDIUM':
-                return { color: 'bg-yellow-500', textColor: 'text-yellow-700', bgColor: 'bg-yellow-50', label: 'Средний' }
+                return {color: 'bg-yellow-500', textColor: 'text-yellow-700', bgColor: 'bg-yellow-50', label: 'Средний'}
             case 'HIGH':
-                return { color: 'bg-orange-500', textColor: 'text-orange-700', bgColor: 'bg-orange-50', label: 'Высокий' }
+                return {color: 'bg-orange-500', textColor: 'text-orange-700', bgColor: 'bg-orange-50', label: 'Высокий'}
             case 'CRITICAL':
-                return { color: 'bg-red-500', textColor: 'text-red-700', bgColor: 'bg-red-50', label: 'Критический' }
+                return {color: 'bg-red-500', textColor: 'text-red-700', bgColor: 'bg-red-50', label: 'Критический'}
         }
     }
 
@@ -164,7 +163,7 @@ export function RestTimeAnalysis({
         return (
             <Card className={className}>
                 <CardContent className="p-6 text-center">
-                    <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4"/>
                     <h3 className="text-lg font-medium mb-2">Анализ РТО недоступен</h3>
                     <p className="text-muted-foreground">
                         Для выполнения анализа требуется выбрать маршрут и время отправления
@@ -179,7 +178,7 @@ export function RestTimeAnalysis({
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
-                        <Shield className="h-5 w-5" />
+                        <Shield className="h-5 w-5"/>
                         Анализ соответствия РТО
                     </CardTitle>
                     <Button
@@ -189,9 +188,9 @@ export function RestTimeAnalysis({
                         disabled={isAnalyzing}
                     >
                         {isAnalyzing ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin"/>
                         ) : (
-                            <RefreshCw className="h-4 w-4" />
+                            <RefreshCw className="h-4 w-4"/>
                         )}
                         Обновить
                     </Button>
@@ -201,7 +200,7 @@ export function RestTimeAnalysis({
                 {isAnalyzing ? (
                     <div className="flex items-center justify-center py-12">
                         <div className="text-center">
-                            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4"/>
                             <p className="text-muted-foreground">Выполняется анализ РТО...</p>
                         </div>
                     </div>
@@ -215,12 +214,13 @@ export function RestTimeAnalysis({
 
                         <TabsContent value="overview" className="space-y-4 mt-4">
                             {/* Compliance Status */}
-                            <div className={`p-4 rounded-lg ${analysisResult.compliant ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} border`}>
+                            <div
+                                className={`p-4 rounded-lg ${analysisResult.compliant ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} border`}>
                                 <div className="flex items-center gap-3">
                                     {analysisResult.compliant ? (
-                                        <CheckCircle2 className="h-6 w-6 text-green-600" />
+                                        <CheckCircle2 className="h-6 w-6 text-green-600"/>
                                     ) : (
-                                        <AlertTriangle className="h-6 w-6 text-red-600" />
+                                        <AlertTriangle className="h-6 w-6 text-red-600"/>
                                     )}
                                     <div>
                                         <h3 className={`font-semibold ${analysisResult.compliant ? 'text-green-800' : 'text-red-800'}`}>
@@ -240,7 +240,7 @@ export function RestTimeAnalysis({
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="text-center p-4 border rounded-lg">
                                     <div className="flex items-center justify-center mb-2">
-                                        <TrendingUp className="h-5 w-5 text-muted-foreground mr-2" />
+                                        <TrendingUp className="h-5 w-5 text-muted-foreground mr-2"/>
                                         <span className="text-sm text-muted-foreground">Уровень риска</span>
                                     </div>
                                     <Badge
@@ -253,7 +253,7 @@ export function RestTimeAnalysis({
 
                                 <div className="text-center p-4 border rounded-lg">
                                     <div className="flex items-center justify-center mb-2">
-                                        <Clock className="h-5 w-5 text-muted-foreground mr-2" />
+                                        <Clock className="h-5 w-5 text-muted-foreground mr-2"/>
                                         <span className="text-sm text-muted-foreground">Следующий отдых</span>
                                     </div>
                                     <div className="text-lg font-semibold">
@@ -303,7 +303,7 @@ export function RestTimeAnalysis({
                                             variant={violation.severity === 'VIOLATION' ? 'destructive' : 'default'}
                                             className="py-2"
                                         >
-                                            <AlertTriangle className="h-4 w-4" />
+                                            <AlertTriangle className="h-4 w-4"/>
                                             <AlertDescription className="text-sm">
                                                 {violation.description}
                                                 {violation.timeToViolation && (
@@ -325,7 +325,7 @@ export function RestTimeAnalysis({
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-3 h-3 bg-blue-500 rounded-full" />
+                                            <div className="w-3 h-3 bg-blue-500 rounded-full"/>
                                             <span className="font-medium">Начало движения</span>
                                         </div>
                                         <span className="text-sm">
@@ -334,9 +334,10 @@ export function RestTimeAnalysis({
                                     </div>
 
                                     {analysisResult.recommendedRestStops.map((stop, index) => (
-                                        <div key={index} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border">
+                                        <div key={index}
+                                             className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border">
                                             <div className="flex items-center gap-2">
-                                                <Coffee className="h-4 w-4 text-yellow-600" />
+                                                <Coffee className="h-4 w-4 text-yellow-600"/>
                                                 <span className="font-medium">
                                                     {stop.reason === 'MANDATORY_BREAK' ? 'Обязательный перерыв' : 'Рекомендуемый отдых'}
                                                 </span>
@@ -350,9 +351,10 @@ export function RestTimeAnalysis({
                                         </div>
                                     ))}
 
-                                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border">
+                                    <div
+                                        className="flex items-center justify-between p-3 bg-green-50 rounded-lg border">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-3 h-3 bg-green-500 rounded-full" />
+                                            <div className="w-3 h-3 bg-green-500 rounded-full"/>
                                             <span className="font-medium">Прибытие</span>
                                         </div>
                                         <span className="text-sm">
@@ -374,7 +376,7 @@ export function RestTimeAnalysis({
                                                 <div className="flex justify-between items-start">
                                                     <div className="space-y-2">
                                                         <div className="flex items-center gap-2">
-                                                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                                                            <MapPin className="h-4 w-4 text-muted-foreground"/>
                                                             <span className="font-medium">
                                                                 Остановка {index + 1}
                                                             </span>
@@ -390,7 +392,8 @@ export function RestTimeAnalysis({
                                                         {stop.facilityTypes && stop.facilityTypes.length > 0 && (
                                                             <div className="flex flex-wrap gap-1">
                                                                 {stop.facilityTypes.map((facility, fi) => (
-                                                                    <Badge key={fi} variant="secondary" className="text-xs">
+                                                                    <Badge key={fi} variant="secondary"
+                                                                           className="text-xs">
                                                                         {facility}
                                                                     </Badge>
                                                                 ))}
@@ -413,7 +416,7 @@ export function RestTimeAnalysis({
                                 </div>
                             ) : (
                                 <div className="text-center py-8">
-                                    <Bed className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                                    <Bed className="h-12 w-12 mx-auto text-muted-foreground mb-4"/>
                                     <h3 className="text-lg font-medium mb-2">Остановки не требуются</h3>
                                     <p className="text-muted-foreground">
                                         Для данного маршрута дополнительные остановки для отдыха не нужны
@@ -424,7 +427,7 @@ export function RestTimeAnalysis({
                     </Tabs>
                 ) : (
                     <div className="text-center py-8">
-                        <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4"/>
                         <h3 className="text-lg font-medium mb-2">Анализ не выполнен</h3>
                         <p className="text-muted-foreground mb-4">
                             Нажмите кнопку "Обновить" для выполнения анализа РТО

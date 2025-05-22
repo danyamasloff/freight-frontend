@@ -7,7 +7,6 @@ import {
     Clock,
     AlertTriangle,
     CheckCircle2,
-    Timer,
     Truck,
     Coffee,
     Bed,
@@ -15,7 +14,7 @@ import {
     Pause,
     Activity
 } from 'lucide-react'
-import { useDriverStatus } from '@/hooks/use-driver-status'
+import { useDriverStatus } from '../hooks/use-driver-status'
 import { DrivingStatus, DRIVER_STATUS_CONFIG, WORKING_TIME_LIMITS } from '../types'
 
 interface DriverStatusPanelProps {
@@ -31,7 +30,6 @@ export function DriverStatusPanel({ driverId, className, compact = false }: Driv
         changeStatus,
         formatDuration,
         getAvailableStatuses,
-        getStatusLabel
     } = useDriverStatus({ driverId })
 
     const statusConfig = DRIVER_STATUS_CONFIG[statusState.currentStatus]
