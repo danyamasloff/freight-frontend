@@ -16,6 +16,7 @@ export const ROUTES = {
     ROUTES: '/routes',
     ROUTE_DETAILS: '/routes/:id',
     ROUTE_CREATE: '/routes/create',
+    ROUTE_EDIT: '/routes/edit/:id',
 
     // Водители
     DRIVERS: '/drivers',
@@ -27,6 +28,7 @@ export const ROUTES = {
     DRIVER_MEDICAL: '/drivers/:id/medical',
     DRIVER_QUALIFICATIONS: '/drivers/:id/qualifications',
     DRIVER_ROUTES: '/drivers/:id/routes',
+    DRIVER_RTO_ANALYSIS: '/drivers/:id/rto-analysis',
 
     // Транспорт
     FLEET: '/fleet',
