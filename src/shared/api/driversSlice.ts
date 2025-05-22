@@ -1,15 +1,20 @@
-import { apiSlice } from './apiSlice'
+import { apiSlice } from './apiSlice';
 import type {
     DriverSummary,
     DriverDetail,
+    DriverCreate,
+    DriverUpdate,
+    DriverMedical,
+    DriverQualification,
     DriverRestAnalysis,
-    RestStopRecommendation,
-    DrivingStatus,
-    RouteResponse
-} from '@/shared/types/api'
+    DriverPerformance,
+    DrivingStatus
+} from '@/shared/types/driver';
+import type { RouteResponse } from '@/shared/types/api';
 
 export const driversSlice = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
+        // CRUD операции
         getDrivers: builder.query<DriverSummary[], void>({
             query: () => '/drivers',
             providesTags: ['Driver'],
@@ -18,7 +23,7 @@ export const driversSlice = apiSlice.injectEndpoints({
             query: (id) => `/drivers/${id}`,
             providesTags: (result, error, id) => [{ type: 'Driver', id }],
         }),
-        createDriver: builder.mutation<DriverDetail, Partial<DriverDetail>>({
+        createDriver: builder.mutation<DriverDetail, DriverCreate>({
             query: (driverData) => ({
                 url: '/drivers',
                 method: 'POST',
@@ -26,11 +31,11 @@ export const driversSlice = apiSlice.injectEndpoints({
             }),
             invalidatesTags: ['Driver'],
         }),
-        updateDriver: builder.mutation<DriverDetail, { id: number; data: Partial<DriverDetail> }>({
-            query: ({ id, data }) => ({
-                url: `/drivers/${id}`,
+        updateDriver: builder.mutation<DriverDetail, DriverUpdate>({
+            query: (driverData) => ({
+                url: `/drivers/${driverData.id}`,
                 method: 'PUT',
-                body: data,
+                body: driverData,
             }),
             invalidatesTags: (result, error, { id }) => [{ type: 'Driver', id }],
         }),
@@ -41,11 +46,43 @@ export const driversSlice = apiSlice.injectEndpoints({
             }),
             invalidatesTags: ['Driver'],
         }),
-        // РТО анализ
-        analyzeRestTime: builder.mutation<DriverRestAnalysis, {
-            driverId: number
-            route: RouteResponse
-            departureTime: string
+
+        // Операции с медицинскими данными
+        getDriverMedical: builder.query<DriverMedical, number>({
+            query: (driverId) => `/drivers/${driverId}/medical`,
+            providesTags: (result, error, driverId) => [{ type: 'Driver', id: driverId }],
+        }),
+        updateDriverMedical: builder.mutation<DriverMedical, { driverId: number; data: DriverMedical }>({
+            query: ({ driverId, data }) => ({
+                url: `/drivers/${driverId}/medical`,
+                method: 'PUT',
+                body: data,
+            }),
+            invalidatesTags: (result, error, { driverId }) => [{ type: 'Driver', id: driverId }],
+        }),
+
+        // Операции с квалификациями
+        getDriverQualifications: builder.query<string[], number>({
+            query: (driverId) => `/drivers/${driverId}/qualifications`,
+            providesTags: (result, error, driverId) => [{ type: 'Driver', id: driverId }],
+        }),
+        updateDriverQualifications: builder.mutation<string[], { driverId: number; qualifications: string[] }>({
+            query: ({ driverId, qualifications }) => ({
+                url: `/drivers/${driverId}/qualifications`,
+                method: 'PUT',
+                body: qualifications,
+            }),
+            invalidatesTags: (result, error, { driverId }) => [{ type: 'Driver', id: driverId }],
+        }),
+
+        // Операции с режимом труда и отдыха
+        analyzeDriverRestTime: builder.query<DriverRestAnalysis, { driverId: number; routeId: number }>({
+            query: ({ driverId, routeId }) => `/drivers/${driverId}/rest-analysis/route/${routeId}`,
+        }),
+        analyzeRouteRestTime: builder.mutation<DriverRestAnalysis, {
+            driverId: number;
+            route: RouteResponse;
+            departureTime: string;
         }>({
             query: ({ driverId, route, departureTime }) => ({
                 url: `/drivers/${driverId}/analyze-rest-time?departureTime=${departureTime}`,
@@ -53,21 +90,10 @@ export const driversSlice = apiSlice.injectEndpoints({
                 body: route,
             }),
         }),
-        getRestStops: builder.query<RestStopRecommendation[], {
-            driverId: number
-            startLat: number
-            startLon: number
-            endLat: number
-            endLon: number
-            departureTime: string
-        }>({
-            query: ({ driverId, startLat, startLon, endLat, endLon, departureTime }) =>
-                `/drivers/${driverId}/rest-stops?startLat=${startLat}&startLon=${startLon}&endLat=${endLat}&endLon=${endLon}&departureTime=${departureTime}`,
-        }),
         updateDriverStatus: builder.mutation<DriverDetail, {
-            driverId: number
-            status: DrivingStatus
-            timestamp: string
+            driverId: number;
+            status: DrivingStatus;
+            timestamp: string;
         }>({
             query: ({ driverId, status, timestamp }) => ({
                 url: `/drivers/${driverId}/status?status=${status}&timestamp=${timestamp}`,
@@ -75,8 +101,30 @@ export const driversSlice = apiSlice.injectEndpoints({
             }),
             invalidatesTags: (result, error, { driverId }) => [{ type: 'Driver', id: driverId }],
         }),
+
+        // Анализ эффективности водителя
+        getDriverPerformance: builder.query<DriverPerformance, {
+            driverId: number;
+            startDate?: string;
+            endDate?: string;
+        }>({
+            query: ({ driverId, startDate, endDate }) => {
+                let url = `/drivers/${driverId}/performance`;
+                const params = new URLSearchParams();
+
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+
+                if (params.toString()) {
+                    url += `?${params.toString()}`;
+                }
+
+                return url;
+            },
+            providesTags: (result, error, { driverId }) => [{ type: 'Driver', id: driverId }],
+        }),
     }),
-})
+});
 
 export const {
     useGetDriversQuery,
@@ -84,7 +132,12 @@ export const {
     useCreateDriverMutation,
     useUpdateDriverMutation,
     useDeleteDriverMutation,
-    useAnalyzeRestTimeMutation,
-    useGetRestStopsQuery,
+    useGetDriverMedicalQuery,
+    useUpdateDriverMedicalMutation,
+    useGetDriverQualificationsQuery,
+    useUpdateDriverQualificationsMutation,
+    useAnalyzeDriverRestTimeQuery,
+    useAnalyzeRouteRestTimeMutation,
     useUpdateDriverStatusMutation,
-} = driversSlice
+    useGetDriverPerformanceQuery,
+} = driversSlice;

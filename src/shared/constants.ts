@@ -22,23 +22,28 @@ export const ROUTES = {
     DRIVER_DETAILS: '/drivers/:id',
     DRIVER_CREATE: '/drivers/create',
     DRIVER_EDIT: '/drivers/edit/:id',
-    DRIVER_RTO_ANALYSIS: '/drivers/:id/rto-analysis',
+    DRIVER_STATUS: '/drivers/:id/status',
     DRIVER_PERFORMANCE: '/drivers/:id/performance',
+    DRIVER_MEDICAL: '/drivers/:id/medical',
+    DRIVER_QUALIFICATIONS: '/drivers/:id/qualifications',
+    DRIVER_ROUTES: '/drivers/:id/routes',
 
     // Транспорт
     FLEET: '/fleet',
-    TRUCK_DETAILS: '/fleet/:id',
-
-    // Аналитика
-    ANALYTICS: '/analytics',
-    COMPLIANCE: '/compliance',
-    SETTINGS: '/settings',
+    VEHICLE_DETAILS: '/fleet/:id',
+    VEHICLE_CREATE: '/fleet/create',
+    VEHICLE_EDIT: '/fleet/edit/:id',
 
     // Грузы
     CARGO: '/cargo',
     CARGO_DETAILS: '/cargo/:id',
     CARGO_CREATE: '/cargo/create',
     CARGO_EDIT: '/cargo/edit/:id',
+
+    // Аналитика
+    ANALYTICS: '/analytics',
+    COMPLIANCE: '/compliance',
+    SETTINGS: '/settings',
 } as const
 
 export const QUERY_KEYS = {

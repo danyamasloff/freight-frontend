@@ -1,178 +1,164 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useCreateDriverMutation, useUpdateDriverMutation } from '@/shared/api/driversSlice'
+import { useToast } from '@/hooks/use-toast'
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { DatePicker } from '@/components/ui/date-picker';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+    CalendarDays,
+    CreditCard,
+    Phone,
+    Mail,
+    User,
+    Truck,
+    AlertTriangle,
+    Loader2,
+    X
+} from 'lucide-react'
 
-import { useCreateDriverMutation, useUpdateDriverMutation } from '@/shared/api/driversApiSlice';
-import { DrivingStatus, DriverDetailDto } from '@/shared/types/driver';
-import { useToast } from '@/hooks/use-toast';
-
-// Схема валидации формы
-const driverFormSchema = z.object({
-    firstName: z.string().min(2, {
-        message: "Имя должно содержать минимум 2 символа",
-    }),
-    lastName: z.string().min(2, {
-        message: "Фамилия должна содержать минимум 2 символа",
-    }),
-    middleName: z.string().optional(),
-    licenseNumber: z.string().min(3, {
-        message: "Номер лицензии должен содержать минимум 3 символа",
-    }),
-    licenseCategories: z.string().optional(),
-    phoneNumber: z.string().optional(),
-    email: z.string().email({
-        message: "Введите корректный email",
-    }).optional().or(z.literal('')),
-    birthDate: z.date().optional(),
-    licenseIssueDate: z.date().optional(),
-    licenseExpiryDate: z.date().optional(),
-    drivingExperienceYears: z.coerce.number().min(0).optional(),
-    hasDangerousGoodsCertificate: z.boolean().default(false),
-    dangerousGoodsCertificateExpiry: z.date().optional(),
-    hasInternationalTransportationPermit: z.boolean().default(false),
-    hourlyRate: z.coerce.number().min(0).optional(),
-    perKilometerRate: z.coerce.number().min(0).optional(),
-    currentDrivingStatus: z.nativeEnum(DrivingStatus).optional(),
-});
-
-type DriverFormValues = z.infer<typeof driverFormSchema>;
+import { driverFormSchema, LICENSE_CATEGORIES, type DriverFormValues, type DriverDetail } from '../types'
 
 interface DriverFormProps {
-    initialData?: Partial<DriverDetailDto>;
-    id?: number;
+    initialData?: Partial<DriverDetail>
+    id?: number
 }
 
 export function DriverForm({ initialData, id }: DriverFormProps) {
-    const [activeTab, setActiveTab] = useState("basic");
-    const { toast } = useToast();
-    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState("personal")
+    const { toast } = useToast()
+    const navigate = useNavigate()
 
-    const [createDriver, { isLoading: isCreating }] = useCreateDriverMutation();
-    const [updateDriver, { isLoading: isUpdating }] = useUpdateDriverMutation();
+    const [createDriver, { isLoading: isCreating }] = useCreateDriverMutation()
+    const [updateDriver, { isLoading: isUpdating }] = useUpdateDriverMutation()
 
-    const isLoading = isCreating || isUpdating;
-    const isEditMode = !!id;
+    const isLoading = isCreating || isUpdating
+    const isEditMode = !!id
 
-    // Преобразование дат из строк в объекты Date для формы
-    const formattedInitialData = initialData ? {
-        ...initialData,
-        birthDate: initialData.birthDate ? new Date(initialData.birthDate) : undefined,
-        licenseIssueDate: initialData.licenseIssueDate ? new Date(initialData.licenseIssueDate) : undefined,
-        licenseExpiryDate: initialData.licenseExpiryDate ? new Date(initialData.licenseExpiryDate) : undefined,
-        dangerousGoodsCertificateExpiry: initialData.dangerousGoodsCertificateExpiry
-            ? new Date(initialData.dangerousGoodsCertificateExpiry)
-            : undefined,
-    } : {};
-
-    // Инициализация формы
     const form = useForm<DriverFormValues>({
         resolver: zodResolver(driverFormSchema),
         defaultValues: {
             firstName: '',
             lastName: '',
-            middleName: '',
             licenseNumber: '',
-            licenseCategories: '',
-            phoneNumber: '',
+            licenseCategory: [],
+            phone: '',
             email: '',
-            drivingExperienceYears: 0,
-            hasDangerousGoodsCertificate: false,
-            hasInternationalTransportationPermit: false,
-            currentDrivingStatus: DrivingStatus.AVAILABILITY,
-            ...formattedInitialData,
+            experience: 0,
+            dangerousGoodsPermit: false,
+            hourlyRate: 0,
+            kmRate: 0,
+            notes: '',
+            ...initialData,
         },
-    });
+    })
 
-    const hasDangerousGoods = form.watch('hasDangerousGoodsCertificate');
+    const isDangerousGoodsPermit = form.watch('dangerousGoodsPermit')
+    const selectedCategories = form.watch('licenseCategory')
 
     async function onSubmit(values: DriverFormValues) {
         try {
-            // Подготовка данных для API (преобразование дат в ISO строки)
             const driverData = {
                 ...values,
-                birthDate: values.birthDate?.toISOString().split('T')[0],
-                licenseIssueDate: values.licenseIssueDate?.toISOString().split('T')[0],
-                licenseExpiryDate: values.licenseExpiryDate?.toISOString().split('T')[0],
-                dangerousGoodsCertificateExpiry: values.dangerousGoodsCertificateExpiry?.toISOString().split('T')[0],
-                currentStatusStartTime: new Date().toISOString(),
-            };
+                name: `${values.firstName} ${values.lastName}`,
+                // Convert empty strings to undefined for optional fields
+                email: values.email || undefined,
+                licenseIssueDate: values.licenseIssueDate || undefined,
+                licenseExpiryDate: values.licenseExpiryDate || undefined,
+                medicalCertificateExpiryDate: values.medicalCertificateExpiryDate || undefined,
+                dangerousGoodsPermitExpiryDate: values.dangerousGoodsPermitExpiryDate || undefined,
+                hourlyRate: values.hourlyRate || undefined,
+                kmRate: values.kmRate || undefined,
+                notes: values.notes || undefined,
+            }
 
             if (isEditMode && id) {
-                await updateDriver({ id, data: driverData }).unwrap();
+                await updateDriver({ id, data: driverData }).unwrap()
                 toast({
                     title: "Водитель обновлен",
-                    description: `Водитель "${values.lastName} ${values.firstName}" успешно обновлен`
-                });
-                navigate(`/drivers/${id}`);
+                    description: `Данные водителя "${values.firstName} ${values.lastName}" успешно обновлены`
+                })
             } else {
-                const result = await createDriver(driverData).unwrap();
+                const result = await createDriver(driverData).unwrap()
                 toast({
                     title: "Водитель создан",
-                    description: `Водитель "${values.lastName} ${values.firstName}" успешно создан`
-                });
-                navigate(`/drivers/${result.id}`);
+                    description: `Водитель "${values.firstName} ${values.lastName}" успешно добавлен в систему`
+                })
+                navigate(`/drivers/${result.id}`)
             }
         } catch (error) {
             toast({
                 title: "Ошибка",
                 description: "Не удалось сохранить данные водителя. Пожалуйста, попробуйте снова.",
                 variant: "destructive"
-            });
-            console.error("Driver save error:", error);
+            })
+            console.error("Driver save error:", error)
         }
     }
 
+    const addLicenseCategory = (category: string) => {
+        const currentCategories = form.getValues('licenseCategory')
+        if (!currentCategories.includes(category)) {
+            form.setValue('licenseCategory', [...currentCategories, category])
+        }
+    }
+
+    const removeLicenseCategory = (category: string) => {
+        const currentCategories = form.getValues('licenseCategory')
+        form.setValue('licenseCategory', currentCategories.filter(c => c !== category))
+    }
+
+    const isLicenseExpiringSoon = (expiryDate?: string) => {
+        if (!expiryDate) return false
+        const expiry = new Date(expiryDate)
+        const now = new Date()
+        const monthsUntilExpiry = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30)
+        return monthsUntilExpiry <= 3 && monthsUntilExpiry > 0
+    }
+
+    const isLicenseExpired = (expiryDate?: string) => {
+        if (!expiryDate) return false
+        const expiry = new Date(expiryDate)
+        const now = new Date()
+        return expiry < now
+    }
+
     return (
-        <Card className="w-full">
+        <Card className="w-full max-w-4xl mx-auto">
             <CardHeader>
-                <CardTitle>{isEditMode ? 'Редактирование водителя' : 'Создание нового водителя'}</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    {isEditMode ? 'Редактирование водителя' : 'Добавление нового водителя'}
+                </CardTitle>
                 <CardDescription>
-                    {isEditMode
-                        ? 'Редактирование информации о водителе'
-                        : 'Заполните информацию о водителе для создания записи в системе'
-                    }
+                    Заполните информацию о водителе для добавления в систему управления автопарком
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         <Tabs value={activeTab} onValueChange={setActiveTab}>
-                            <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="basic">Основные данные</TabsTrigger>
-                                <TabsTrigger value="docs">Документы</TabsTrigger>
-                                <TabsTrigger value="work">Работа и оплата</TabsTrigger>
+                            <TabsList className="grid w-full grid-cols-4">
+                                <TabsTrigger value="personal">Личные данные</TabsTrigger>
+                                <TabsTrigger value="license">Права и разрешения</TabsTrigger>
+                                <TabsTrigger value="rates">Тарифы</TabsTrigger>
+                                <TabsTrigger value="additional">Дополнительно</TabsTrigger>
                             </TabsList>
 
-                            {/* Основные данные */}
-                            <TabsContent value="basic" className="space-y-4 pt-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="lastName"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Фамилия</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="Введите фамилию" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-
+                            {/* Personal Information */}
+                            <TabsContent value="personal" className="space-y-4 pt-4">
+                                <div className="grid grid-cols-2 gap-4">
                                     <FormField
                                         control={form.control}
                                         name="firstName"
@@ -180,7 +166,21 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
                                             <FormItem>
                                                 <FormLabel>Имя</FormLabel>
                                                 <FormControl>
-                                                    <Input placeholder="Введите имя" {...field} />
+                                                    <Input placeholder="Иван" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="lastName"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Фамилия</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Иванов" {...field} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -188,46 +188,22 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
                                     />
                                 </div>
 
-                                <FormField
-                                    control={form.control}
-                                    name="middleName"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Отчество</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="Введите отчество" {...field} value={field.value || ''} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                <FormField
-                                    control={form.control}
-                                    name="birthDate"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-col">
-                                            <FormLabel>Дата рождения</FormLabel>
-                                            <DatePicker
-                                                date={field.value}
-                                                setDate={field.onChange}
-                                            />
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                <Separator className="my-4" />
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-4">
                                     <FormField
                                         control={form.control}
-                                        name="phoneNumber"
+                                        name="phone"
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Телефон</FormLabel>
                                                 <FormControl>
-                                                    <Input placeholder="+7 (999) 123-45-67" {...field} value={field.value || ''} />
+                                                    <div className="relative">
+                                                        <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                        <Input
+                                                            placeholder="+79001234567"
+                                                            className="pl-10"
+                                                            {...field}
+                                                        />
+                                                    </div>
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -239,9 +215,17 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
                                         name="email"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Email</FormLabel>
+                                                <FormLabel>Email (необязательно)</FormLabel>
                                                 <FormControl>
-                                                    <Input type="email" placeholder="user@example.com" {...field} value={field.value || ''} />
+                                                    <div className="relative">
+                                                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                        <Input
+                                                            placeholder="ivan@example.com"
+                                                            type="email"
+                                                            className="pl-10"
+                                                            {...field}
+                                                        />
+                                                    </div>
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -251,47 +235,30 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
 
                                 <FormField
                                     control={form.control}
-                                    name="drivingExperienceYears"
+                                    name="experience"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Опыт вождения (лет)</FormLabel>
+                                            <FormLabel>Стаж вождения (лет)</FormLabel>
                                             <FormControl>
-                                                <Input type="number" {...field} />
+                                                <Input
+                                                    type="number"
+                                                    placeholder="10"
+                                                    min="0"
+                                                    max="50"
+                                                    {...field}
+                                                />
                                             </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                <FormField
-                                    control={form.control}
-                                    name="currentDrivingStatus"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Текущий статус</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Выберите статус" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value={DrivingStatus.AVAILABILITY}>Доступен</SelectItem>
-                                                    <SelectItem value={DrivingStatus.DRIVING}>За рулем</SelectItem>
-                                                    <SelectItem value={DrivingStatus.REST_BREAK}>Короткий отдых</SelectItem>
-                                                    <SelectItem value={DrivingStatus.DAILY_REST}>Дневной отдых</SelectItem>
-                                                    <SelectItem value={DrivingStatus.WEEKLY_REST}>Недельный отдых</SelectItem>
-                                                    <SelectItem value={DrivingStatus.OTHER_WORK}>Другая работа</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <FormDescription>
+                                                Общий стаж вождения транспортных средств
+                                            </FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
                             </TabsContent>
 
-                            {/* Документы */}
-                            <TabsContent value="docs" className="space-y-4 pt-4">
+                            {/* License and Permits */}
+                            <TabsContent value="license" className="space-y-4 pt-4">
                                 <FormField
                                     control={form.control}
                                     name="licenseNumber"
@@ -299,24 +266,82 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
                                         <FormItem>
                                             <FormLabel>Номер водительского удостоверения</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Введите номер ВУ" {...field} />
+                                                <div className="relative">
+                                                    <CreditCard className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        placeholder="7799123456"
+                                                        className="pl-10"
+                                                        {...field}
+                                                    />
+                                                </div>
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <FormLabel>Категории водительского удостоверения</FormLabel>
+                                    <div className="mt-2 space-y-2">
+                                        <Select onValueChange={addLicenseCategory}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Добавить категорию" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {LICENSE_CATEGORIES.map((category) => (
+                                                    <SelectItem
+                                                        key={category.value}
+                                                        value={category.value}
+                                                        disabled={selectedCategories.includes(category.value)}
+                                                    >
+                                                        {category.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
+                                        {selectedCategories.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {selectedCategories.map((category) => {
+                                                    const categoryInfo = LICENSE_CATEGORIES.find(c => c.value === category)
+                                                    return (
+                                                        <Badge key={category} variant="secondary" className="gap-1">
+                                                            {categoryInfo?.label || category}
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                                                                onClick={() => removeLicenseCategory(category)}
+                                                            >
+                                                                <X className="h-3 w-3" />
+                                                            </Button>
+                                                        </Badge>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <FormMessage />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
                                     <FormField
                                         control={form.control}
                                         name="licenseIssueDate"
                                         render={({ field }) => (
-                                            <FormItem className="flex flex-col">
-                                                <FormLabel>Дата выдачи ВУ</FormLabel>
-                                                <DatePicker
-                                                    date={field.value}
-                                                    setDate={field.onChange}
-                                                />
+                                            <FormItem>
+                                                <FormLabel>Дата выдачи прав</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <CalendarDays className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                        <Input
+                                                            type="date"
+                                                            className="pl-10"
+                                                            {...field}
+                                                        />
+                                                    </div>
+                                                </FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -326,12 +351,34 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
                                         control={form.control}
                                         name="licenseExpiryDate"
                                         render={({ field }) => (
-                                            <FormItem className="flex flex-col">
-                                                <FormLabel>Срок действия ВУ</FormLabel>
-                                                <DatePicker
-                                                    date={field.value}
-                                                    setDate={field.onChange}
-                                                />
+                                            <FormItem>
+                                                <FormLabel>Срок действия прав</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <CalendarDays className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                        <Input
+                                                            type="date"
+                                                            className="pl-10"
+                                                            {...field}
+                                                        />
+                                                    </div>
+                                                </FormControl>
+                                                {field.value && isLicenseExpired(field.value) && (
+                                                    <Alert variant="destructive" className="mt-2">
+                                                        <AlertTriangle className="h-4 w-4" />
+                                                        <AlertDescription>
+                                                            Водительское удостоверение просрочено
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                )}
+                                                {field.value && isLicenseExpiringSoon(field.value) && !isLicenseExpired(field.value) && (
+                                                    <Alert className="mt-2">
+                                                        <AlertTriangle className="h-4 w-4" />
+                                                        <AlertDescription>
+                                                            Водительское удостоверение истекает в течение 3 месяцев
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                )}
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -340,32 +387,38 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
 
                                 <FormField
                                     control={form.control}
-                                    name="licenseCategories"
+                                    name="medicalCertificateExpiryDate"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Категории ВУ</FormLabel>
+                                            <FormLabel>Срок действия медицинской справки</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Например: B, C, CE" {...field} value={field.value || ''} />
+                                                <div className="relative">
+                                                    <CalendarDays className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        type="date"
+                                                        className="pl-10"
+                                                        {...field}
+                                                    />
+                                                </div>
                                             </FormControl>
-                                            <FormDescription>
-                                                Укажите категории через запятую, например: B, C, CE
-                                            </FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
 
-                                <Separator className="my-4" />
+                                <Separator />
 
                                 <FormField
                                     control={form.control}
-                                    name="hasDangerousGoodsCertificate"
+                                    name="dangerousGoodsPermit"
                                     render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                                             <div className="space-y-0.5">
-                                                <FormLabel>Свидетельство ДОПОГ</FormLabel>
-                                                <FormDescription>
+                                                <FormLabel className="text-base">
                                                     Разрешение на перевозку опасных грузов
+                                                </FormLabel>
+                                                <FormDescription>
+                                                    Имеет ли водитель действующее разрешение ДОПОГ
                                                 </FormDescription>
                                             </div>
                                             <FormControl>
@@ -378,48 +431,33 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
                                     )}
                                 />
 
-                                {hasDangerousGoods && (
+                                {isDangerousGoodsPermit && (
                                     <FormField
                                         control={form.control}
-                                        name="dangerousGoodsCertificateExpiry"
+                                        name="dangerousGoodsPermitExpiryDate"
                                         render={({ field }) => (
-                                            <FormItem className="flex flex-col">
-                                                <FormLabel>Срок действия ДОПОГ</FormLabel>
-                                                <DatePicker
-                                                    date={field.value}
-                                                    setDate={field.onChange}
-                                                />
+                                            <FormItem>
+                                                <FormLabel>Срок действия разрешения ДОПОГ</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <CalendarDays className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                        <Input
+                                                            type="date"
+                                                            className="pl-10"
+                                                            {...field}
+                                                        />
+                                                    </div>
+                                                </FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
                                 )}
-
-                                <FormField
-                                    control={form.control}
-                                    name="hasInternationalTransportationPermit"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                                            <div className="space-y-0.5">
-                                                <FormLabel>Международные перевозки</FormLabel>
-                                                <FormDescription>
-                                                    Разрешение на международные перевозки
-                                                </FormDescription>
-                                            </div>
-                                            <FormControl>
-                                                <Switch
-                                                    checked={field.value}
-                                                    onCheckedChange={field.onChange}
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
                             </TabsContent>
 
-                            {/* Работа и оплата */}
-                            <TabsContent value="work" className="space-y-4 pt-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Rates */}
+                            <TabsContent value="rates" className="space-y-4 pt-4">
+                                <div className="grid grid-cols-2 gap-4">
                                     <FormField
                                         control={form.control}
                                         name="hourlyRate"
@@ -427,8 +465,17 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
                                             <FormItem>
                                                 <FormLabel>Почасовая ставка (₽/час)</FormLabel>
                                                 <FormControl>
-                                                    <Input type="number" {...field} value={field.value || ''} />
+                                                    <Input
+                                                        type="number"
+                                                        placeholder="500"
+                                                        min="0"
+                                                        step="10"
+                                                        {...field}
+                                                    />
                                                 </FormControl>
+                                                <FormDescription>
+                                                    Стоимость работы водителя за час
+                                                </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -436,22 +483,55 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
 
                                     <FormField
                                         control={form.control}
-                                        name="perKilometerRate"
+                                        name="kmRate"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Ставка за км (₽/км)</FormLabel>
+                                                <FormLabel>Ставка за километр (₽/км)</FormLabel>
                                                 <FormControl>
-                                                    <Input type="number" {...field} value={field.value || ''} />
+                                                    <Input
+                                                        type="number"
+                                                        placeholder="25"
+                                                        min="0"
+                                                        step="1"
+                                                        {...field}
+                                                    />
                                                 </FormControl>
+                                                <FormDescription>
+                                                    Стоимость работы водителя за километр пути
+                                                </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
                                 </div>
                             </TabsContent>
+
+                            {/* Additional Information */}
+                            <TabsContent value="additional" className="space-y-4 pt-4">
+                                <FormField
+                                    control={form.control}
+                                    name="notes"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Дополнительные заметки</FormLabel>
+                                            <FormControl>
+                                                <Textarea
+                                                    placeholder="Дополнительная информация о водителе..."
+                                                    className="min-h-24"
+                                                    {...field}
+                                                />
+                                            </FormControl>
+                                            <FormDescription>
+                                                Любая дополнительная информация, которая может быть полезна
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </TabsContent>
                         </Tabs>
 
-                        <CardFooter className="flex justify-end gap-2 px-0">
+                        <div className="flex justify-end gap-2 pt-6 border-t">
                             <Button
                                 type="button"
                                 variant="outline"
@@ -464,12 +544,12 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
                                 {isLoading && (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 )}
-                                {isEditMode ? 'Обновить водителя' : 'Создать водителя'}
+                                {isEditMode ? 'Обновить водителя' : 'Добавить водителя'}
                             </Button>
-                        </CardFooter>
+                        </div>
                     </form>
                 </Form>
             </CardContent>
         </Card>
-    );
+    )
 }

@@ -1,680 +1,608 @@
-import React from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle
-} from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
+    AlertCircle,
     ArrowLeft,
+    Calendar,
+    CheckCircle2,
+    ChevronRight,
+    Clock,
+    Edit,
+    Loader2,
     Truck,
-    MapPin,
+    FileSpreadsheet,
     Fuel,
     Gauge,
-    Calendar,
-    Wrench,
     AlertTriangle,
-    CheckCircle,
-    Route,
-    Clock,
-    DollarSign,
-    FileText,
-    User,
     Settings,
-    BarChart3
-} from 'lucide-react'
+    Route,
+    Info
+} from 'lucide-react';
 
-// Mock vehicle data
-const vehicleData = {
-    id: 1,
-    licensePlate: 'А123БВ77',
-    brand: 'Volvo',
-    model: 'FH',
-    year: 2020,
-    vin: 'YV2A8A243FA123456',
-    status: 'IN_USE',
-    condition: 'excellent',
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
-    // Current state
-    currentLocation: {
-        address: 'Москва, ТТК, км 15',
-        coordinates: [55.7558, 37.6176]
-    },
-    mileage: 285420,
-    fuelLevel: 85,
-    fuelCapacity: 500,
-    driver: {
-        name: 'Петров Александр Иванович',
-        id: 1,
-        phone: '+7 (999) 123-45-67'
-    },
-    route: {
-        name: 'Москва - СПб',
-        id: 1,
-        progress: 35
-    },
+import { useGetVehicleQuery, useDeleteVehicleMutation } from '@/shared/api/vehiclesApiSlice';
+import { VehicleStatus } from '@/shared/types/vehicle';
+import { formatDateTime } from '@/shared/utils/format';
+import { useToast } from '@/hooks/use-toast';
+import { FuelUpdate } from '@/features/fleet/components/fuel-update';
+import { OdometerUpdate } from '@/features/fleet/components/odometer-update';
 
-    // Technical specs
-    specs: {
-        engine: 'D13K460',
-        power: 460, // HP
-        transmission: 'I-Shift',
-        fuelType: 'Дизель',
-        emissionStandard: 'Euro 6',
-        maxWeight: 40000, // kg
-        emptyWeight: 12000, // kg
-        wheelFormula: '4x2'
-    },
+export default function VehicleDetailsPage() {
+    const { id } = useParams<{ id: string }>();
+    const vehicleId = parseInt(id || '0');
+    const navigate = useNavigate();
+    const { toast } = useToast();
+    const [activeTab, setActiveTab] = useState("info");
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-    // Maintenance
-    maintenance: {
-        lastService: '2024-01-15',
-        nextService: '2024-04-15',
-        mileageAtLastService: 275000,
-        nextServiceMileage: 285000,
-        serviceInterval: 10000,
-        warrantyExpiry: '2025-06-30'
-    },
+    const { data: vehicle, isLoading, error } = useGetVehicleQuery(vehicleId, {
+        skip: isNaN(vehicleId) || vehicleId <= 0
+    });
+    const [deleteVehicle, { isLoading: isDeleting }] = useDeleteVehicleMutation();
 
-    // Documents
-    documents: {
-        registration: {
-            number: 'AB123456',
-            expiry: '2027-03-20',
-            status: 'valid'
-        },
-        insurance: {
-            company: 'РЕСО-Гарантия',
-            policy: 'ABC1234567890',
-            expiry: '2024-12-31',
-            status: 'valid'
-        },
-        technicalInspection: {
-            lastCheck: '2024-03-15',
-            nextCheck: '2025-03-15',
-            status: 'valid'
+    if (isNaN(vehicleId) || vehicleId <= 0) {
+        navigate('/fleet');
+        return null;
+    }
+
+    const handleDelete = async () => {
+        try {
+            await deleteVehicle(vehicleId).unwrap();
+            toast({
+                title: "ТС удалено",
+                description: "Транспортное средство успешно удалено из системы"
+            });
+            navigate('/fleet');
+        } catch (error) {
+            toast({
+                title: "Ошибка удаления",
+                description: "Не удалось удалить транспортное средство",
+                variant: "destructive"
+            });
+        } finally {
+            setDeleteDialogOpen(false);
         }
-    },
+    };
 
-    // Performance data (last 30 days)
-    performance: {
-        fuelConsumption: 28.5, // l/100km
-        averageSpeed: 65, // km/h
-        totalDistance: 8420, // km
-        workingHours: 180,
-        idleTime: 15, // hours
-        maintenanceCosts: 45000, // rubles
-        efficiency: 94.2 // %
-    },
+    // Форматирование отображения статуса
+    const formatStatus = (status?: VehicleStatus) => {
+        if (!status) return 'Неизвестно';
 
-    // Recent activity
-    recentActivity: [
-        {
-            date: '2024-01-20',
-            type: 'route_started',
-            description: 'Начат маршрут Москва - СПб',
-            details: 'Водитель: Петров А.И.'
-        },
-        {
-            date: '2024-01-19',
-            type: 'maintenance',
-            description: 'Плановое ТО завершено',
-            details: 'Замена масла, фильтров'
-        },
-        {
-            date: '2024-01-18',
-            type: 'fuel_fill',
-            description: 'Заправка 450л',
-            details: 'АЗС "Лукойл", г. Тверь'
-        }
-    ],
-
-    // Alerts
-    alerts: [
-        {
-            type: 'warning',
-            message: 'Приближается плановое ТО',
-            details: 'До следующего ТО осталось 580 км',
-            priority: 'medium'
-        }
-    ]
-}
-
-export function VehicleDetailsPage() {
-    const { id } = useParams<{ id: string }>()
-
-    const getStatusColor = (status: string) => {
         switch (status) {
-            case 'IN_USE': return 'bg-blue-500'
-            case 'AVAILABLE': return 'bg-green-500'
-            case 'MAINTENANCE': return 'bg-yellow-500'
-            case 'OUT_OF_SERVICE': return 'bg-red-500'
-            default: return 'bg-gray-500'
+            case VehicleStatus.AVAILABLE:
+                return 'Доступно';
+            case VehicleStatus.IN_USE:
+                return 'В использовании';
+            case VehicleStatus.MAINTENANCE:
+                return 'На техобслуживании';
+            case VehicleStatus.OUT_OF_SERVICE:
+                return 'Не на ходу';
+            default:
+                return status;
         }
-    }
+    };
 
-    const getStatusLabel = (status: string) => {
+    // Получение класса статуса для бейджа
+    const getStatusVariant = (status?: VehicleStatus) => {
+        if (!status) return 'secondary';
+
         switch (status) {
-            case 'IN_USE': return 'На линии'
-            case 'AVAILABLE': return 'Доступен'
-            case 'MAINTENANCE': return 'ТО'
-            case 'OUT_OF_SERVICE': return 'Не в эксплуатации'
-            default: return status
+            case VehicleStatus.AVAILABLE:
+                return 'success';
+            case VehicleStatus.IN_USE:
+                return 'default';
+            case VehicleStatus.MAINTENANCE:
+                return 'warning';
+            case VehicleStatus.OUT_OF_SERVICE:
+                return 'destructive';
+            default:
+                return 'secondary';
         }
-    }
+    };
 
-    const getConditionColor = (condition: string) => {
-        switch (condition) {
-            case 'excellent': return 'text-green-600'
-            case 'good': return 'text-blue-600'
-            case 'fair': return 'text-yellow-600'
-            case 'needs_repair': return 'text-red-600'
-            default: return 'text-gray-600'
-        }
-    }
-
-    const getConditionLabel = (condition: string) => {
-        switch (condition) {
-            case 'excellent': return 'Отличное'
-            case 'good': return 'Хорошее'
-            case 'fair': return 'Удовлетворительное'
-            case 'needs_repair': return 'Требует ремонта'
-            default: return condition
-        }
-    }
-
-    const getFuelLevelColor = (level: number) => {
-        if (level > 50) return 'bg-green-500'
-        if (level > 25) return 'bg-yellow-500'
-        return 'bg-red-500'
+    if (error) {
+        return (
+            <Alert variant="destructive" className="mx-auto max-w-4xl mt-8">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Ошибка</AlertTitle>
+                <AlertDescription>
+                    Не удалось загрузить данные о транспортном средстве. Пожалуйста, попробуйте позже.
+                </AlertDescription>
+                <Button variant="outline" className="mt-4" onClick={() => navigate('/fleet')}>
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Вернуться к списку
+                </Button>
+            </Alert>
+        );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    <Button variant="outline" size="sm" asChild>
-                        <Link to="/fleet">
-                            <ArrowLeft className="h-4 w-4 mr-2" />
-                            К автопарку
-                        </Link>
-                    </Button>
-                    <div>
-                        <h1 className="text-3xl font-bold">{vehicleData.licensePlate}</h1>
-                        <div className="flex items-center space-x-2 mt-1">
-                            <span className="text-muted-foreground">
-                                {vehicleData.brand} {vehicleData.model} ({vehicleData.year})
-                            </span>
-                            <div className={`w-3 h-3 rounded-full ${getStatusColor(vehicleData.status)}`} />
-                            <span className="text-sm">{getStatusLabel(vehicleData.status)}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                    <Button variant="outline">
-                        <Settings className="h-4 w-4 mr-2" />
-                        Настройки
-                    </Button>
-                    <Button variant="outline">
-                        <Wrench className="h-4 w-4 mr-2" />
-                        Заказать ТО
-                    </Button>
-                    <Button>
-                        <Route className="h-4 w-4 mr-2" />
-                        Назначить маршрут
-                    </Button>
-                </div>
+        <div className="container py-8">
+            <div className="flex items-center mb-6 text-muted-foreground">
+                <Button variant="link" asChild className="p-0">
+                    <Link to="/fleet">Автопарк</Link>
+                </Button>
+                <ChevronRight className="h-4 w-4 mx-2" />
+                <span className="text-foreground font-medium">
+                    {isLoading
+                        ? "Загрузка..."
+                        : vehicle
+                            ? `${vehicle.brand} ${vehicle.model} (${vehicle.licensePlate})`
+                            : "Детали ТС"
+                    }
+                </span>
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-center">
-                            <Gauge className="h-8 w-8 text-blue-600" />
-                            <div className="ml-4">
-                                <p className="text-sm font-medium text-muted-foreground">Пробег</p>
-                                <p className="text-2xl font-bold">
-                                    {(vehicleData.mileage / 1000).toFixed(0)}k км
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-3 gap-6">
+                {/* Основная информация о ТС */}
+                <div className="col-span-2">
+                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="info">Основная информация</TabsTrigger>
+                            <TabsTrigger value="technical">Технические характеристики</TabsTrigger>
+                            <TabsTrigger value="documents">Документы</TabsTrigger>
+                        </TabsList>
 
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-center">
-                            <Fuel className="h-8 w-8 text-green-600" />
-                            <div className="ml-4">
-                                <p className="text-sm font-medium text-muted-foreground">Топливо</p>
-                                <div className="flex items-center space-x-2">
-                                    <p className="text-2xl font-bold">{vehicleData.fuelLevel}%</p>
-                                    <div className="w-16 bg-muted rounded-full h-2">
-                                        <div
-                                            className={`h-2 rounded-full ${getFuelLevelColor(vehicleData.fuelLevel)}`}
-                                            style={{ width: `${vehicleData.fuelLevel}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-center">
-                            <CheckCircle className="h-8 w-8 text-purple-600" />
-                            <div className="ml-4">
-                                <p className="text-sm font-medium text-muted-foreground">Состояние</p>
-                                <p className={`text-2xl font-bold ${getConditionColor(vehicleData.condition)}`}>
-                                    {getConditionLabel(vehicleData.condition)}
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-center">
-                            <BarChart3 className="h-8 w-8 text-orange-600" />
-                            <div className="ml-4">
-                                <p className="text-sm font-medium text-muted-foreground">Эффективность</p>
-                                <p className="text-2xl font-bold">{vehicleData.performance.efficiency}%</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Alerts */}
-            {vehicleData.alerts.length > 0 && (
-                <Card className="border-orange-200 bg-orange-50">
-                    <CardContent className="pt-6">
-                        <div className="flex items-start space-x-3">
-                            <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
-                            <div className="flex-1">
-                                <p className="font-medium text-orange-800">
-                                    {vehicleData.alerts[0].message}
-                                </p>
-                                <p className="text-sm text-orange-700 mt-1">
-                                    {vehicleData.alerts[0].details}
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            <Tabs defaultValue="overview" className="space-y-4">
-                <TabsList>
-                    <TabsTrigger value="overview">Обзор</TabsTrigger>
-                    <TabsTrigger value="maintenance">Техобслуживание</TabsTrigger>
-                    <TabsTrigger value="documents">Документы</TabsTrigger>
-                    <TabsTrigger value="performance">Производительность</TabsTrigger>
-                    <TabsTrigger value="history">История</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="overview" className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {/* Current Status */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <MapPin className="h-5 w-5" />
-                                    Текущее состояние
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Местоположение</label>
-                                    <p className="font-medium">{vehicleData.currentLocation.address}</p>
-                                </div>
-
-                                {vehicleData.driver && (
-                                    <div>
-                                        <label className="text-sm font-medium text-muted-foreground">Водитель</label>
-                                        <div className="flex items-center justify-between">
-                                            <p className="font-medium">{vehicleData.driver.name}</p>
-                                            <Button variant="outline" size="sm">
-                                                <User className="h-4 w-4 mr-2" />
-                                                Подробнее
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {vehicleData.route && (
-                                    <div>
-                                        <label className="text-sm font-medium text-muted-foreground">Текущий маршрут</label>
-                                        <p className="font-medium">{vehicleData.route.name}</p>
-                                        <div className="mt-2">
-                                            <div className="flex justify-between text-sm mb-1">
-                                                <span>Прогресс</span>
-                                                <span>{vehicleData.route.progress}%</span>
+                        {/* Основная информация */}
+                        <TabsContent value="info">
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-xl font-bold">
+                                        {isLoading ? <Skeleton className="h-6 w-40" /> : (
+                                            <div className="flex items-center">
+                                                <Truck className="h-5 w-5 mr-2" />
+                                                {`${vehicle?.brand || ''} ${vehicle?.model || ''}`}
                                             </div>
-                                            <Progress value={vehicleData.route.progress} />
+                                        )}
+                                    </CardTitle>
+                                    <div className="flex space-x-2">
+                                        {!isLoading && (
+                                            <>
+                                                <Button variant="outline" size="sm" asChild>
+                                                    <Link to={`/fleet/edit/${vehicleId}`}>
+                                                        <Edit className="h-4 w-4 mr-1" /> Редактировать
+                                                    </Link>
+                                                </Button>
+                                                <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                                                    <DialogTrigger asChild>
+                                                        <Button variant="outline" size="sm">
+                                                            <AlertTriangle className="h-4 w-4 mr-1" /> Удалить
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Удаление транспортного средства</DialogTitle>
+                                                            <DialogDescription>
+                                                                Вы уверены, что хотите удалить ТС "{vehicle?.brand} {vehicle?.model} ({vehicle?.licensePlate})"? Это действие нельзя отменить.
+                                                            </DialogDescription>
+                                                        </DialogHeader>
+                                                        <DialogFooter>
+                                                            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                                                                Отмена
+                                                            </Button>
+                                                            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                                                                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                                Удалить
+                                                            </Button>
+                                                        </DialogFooter>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </>
+                                        )}
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoading ? (
+                                        <div className="space-y-4">
+                                            <Skeleton className="h-4 w-full" />
+                                            <Skeleton className="h-4 w-3/4" />
+                                            <Skeleton className="h-4 w-5/6" />
                                         </div>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-4 mt-6">
+                                                <div className="space-y-2">
+                                                    <div className="text-sm text-muted-foreground">Гос. номер</div>
+                                                    <div className="font-medium">{vehicle?.licensePlate}</div>
+                                                </div>
 
-                                <Separator />
+                                                <div className="space-y-2">
+                                                    <div className="text-sm text-muted-foreground">Статус</div>
+                                                    <div>
+                                                        <Badge variant={getStatusVariant(vehicle?.status)}>
+                                                            {formatStatus(vehicle?.status)}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
 
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <span className="text-muted-foreground">Топливо:</span>
-                                        <p className="font-medium">
-                                            {Math.round(vehicleData.fuelLevel * vehicleData.fuelCapacity / 100)} л
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Пробег:</span>
-                                        <p className="font-medium">{vehicleData.mileage.toLocaleString()} км</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                                <div className="space-y-2">
+                                                    <div className="text-sm text-muted-foreground">Год выпуска</div>
+                                                    <div className="font-medium">{vehicle?.year}</div>
+                                                </div>
 
-                        {/* Technical Specifications */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Settings className="h-5 w-5" />
-                                    Технические характеристики
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                    <div>
-                                        <span className="text-muted-foreground">VIN:</span>
-                                        <p className="font-medium">{vehicleData.vin}</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Двигатель:</span>
-                                        <p className="font-medium">{vehicleData.specs.engine}</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Мощность:</span>
-                                        <p className="font-medium">{vehicleData.specs.power} л.с.</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">КПП:</span>
-                                        <p className="font-medium">{vehicleData.specs.transmission}</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Топливо:</span>
-                                        <p className="font-medium">{vehicleData.specs.fuelType}</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Экологический класс:</span>
-                                        <p className="font-medium">{vehicleData.specs.emissionStandard}</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Полная масса:</span>
-                                        <p className="font-medium">{vehicleData.specs.maxWeight.toLocaleString()} кг</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Снаряженная масса:</span>
-                                        <p className="font-medium">{vehicleData.specs.emptyWeight.toLocaleString()} кг</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
+                                                <div className="space-y-2">
+                                                    <div className="text-sm text-muted-foreground">VIN</div>
+                                                    <div className="font-medium">{vehicle?.vin || 'Не указан'}</div>
+                                                </div>
 
-                <TabsContent value="maintenance" className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Calendar className="h-5 w-5" />
-                                    График обслуживания
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Последнее ТО</label>
-                                    <p className="font-medium">{vehicleData.maintenance.lastService}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Пробег: {vehicleData.maintenance.mileageAtLastService.toLocaleString()} км
-                                    </p>
-                                </div>
+                                                <div className="space-y-2">
+                                                    <div className="text-sm text-muted-foreground">Создано</div>
+                                                    <div className="font-medium flex items-center">
+                                                        <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                                                        {vehicle?.createdAt ? formatDateTime(vehicle.createdAt) : 'Не указано'}
+                                                    </div>
+                                                </div>
 
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Следующее ТО</label>
-                                    <p className="font-medium">{vehicleData.maintenance.nextService}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        При пробеге: {vehicleData.maintenance.nextServiceMileage.toLocaleString()} км
-                                    </p>
-                                </div>
+                                                <div className="space-y-2">
+                                                    <div className="text-sm text-muted-foreground">Обновлено</div>
+                                                    <div className="font-medium flex items-center">
+                                                        <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                                                        {vehicle?.updatedAt ? formatDateTime(vehicle.updatedAt) : 'Не указано'}
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Интервал ТО</label>
-                                    <p className="font-medium">{vehicleData.maintenance.serviceInterval.toLocaleString()} км</p>
-                                </div>
+                                            <Separator className="my-6" />
 
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">Гарантия до</label>
-                                    <p className="font-medium">{vehicleData.maintenance.warrantyExpiry}</p>
-                                </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {vehicle && (
+                                                    <>
+                                                        <FuelUpdate
+                                                            vehicleId={vehicle.id}
+                                                            currentFuel={vehicle.currentFuelL}
+                                                            tankCapacity={vehicle.fuelTankCapacityL}
+                                                        />
+                                                        <OdometerUpdate
+                                                            vehicleId={vehicle.id}
+                                                            currentOdometer={vehicle.currentOdometerKm}
+                                                        />
+                                                    </>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
 
-                                <div className="pt-4">
-                                    <p className="text-sm text-muted-foreground mb-2">
-                                        До следующего ТО
-                                    </p>
-                                    <div className="space-y-2">
-                                        <Progress
-                                            value={((vehicleData.mileage - vehicleData.maintenance.mileageAtLastService) / vehicleData.maintenance.serviceInterval) * 100}
-                                        />
-                                        <p className="text-xs text-muted-foreground">
-                                            Осталось: {vehicleData.maintenance.nextServiceMileage - vehicleData.mileage} км
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        {/* Технические характеристики */}
+                        <TabsContent value="technical">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-lg font-medium">Технические характеристики</CardTitle>
+                                    <CardDescription>Технические параметры транспортного средства</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoading ? (
+                                        <div className="space-y-4">
+                                            <Skeleton className="h-4 w-full" />
+                                            <Skeleton className="h-4 w-3/4" />
+                                            <Skeleton className="h-4 w-5/6" />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="grid md:grid-cols-2 gap-6">
+                                                <div>
+                                                    <h3 className="font-medium mb-3">Габариты и вес</h3>
+                                                    <div className="space-y-2">
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Длина</span>
+                                                            <span className="font-medium">{vehicle?.lengthCm} см</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Ширина</span>
+                                                            <span className="font-medium">{vehicle?.widthCm} см</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Высота</span>
+                                                            <span className="font-medium">{vehicle?.heightCm} см</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Снаряженная масса</span>
+                                                            <span className="font-medium">{vehicle?.emptyWeightKg} кг</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Полная масса</span>
+                                                            <span className="font-medium">{vehicle?.grossWeightKg} кг</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <DollarSign className="h-5 w-5" />
-                                    Расходы на обслуживание
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>
-                                    <label className="text-sm font-medium text-muted-foreground">За последний месяц</label>
-                                    <p className="text-2xl font-bold">
-                                        {vehicleData.performance.maintenanceCosts.toLocaleString()} ₽
-                                    </p>
-                                </div>
+                                                <div>
+                                                    <h3 className="font-medium mb-3">Топливо и пробег</h3>
+                                                    <div className="space-y-2">
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Объем бака</span>
+                                                            <span className="font-medium">{vehicle?.fuelTankCapacityL} л</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Текущий уровень топлива</span>
+                                                            <span className="font-medium">{vehicle?.currentFuelL || 0} л</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Расход топлива</span>
+                                                            <span className="font-medium">{vehicle?.fuelConsumptionPer100km} л/100км</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Текущий пробег</span>
+                                                            <span className="font-medium">{vehicle?.currentOdometerKm || 0} км</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span>Плановое ТО</span>
-                                        <span>25,000 ₽</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span>Расходные материалы</span>
-                                        <span>12,000 ₽</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span>Внеплановый ремонт</span>
-                                        <span>8,000 ₽</span>
-                                    </div>
-                                </div>
+                                            <Separator className="my-6" />
 
-                                <Button variant="outline" className="w-full">
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    Детальный отчет
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
+                                            <div className="space-y-4">
+                                                <h3 className="font-medium">Специальное оборудование</h3>
 
-                <TabsContent value="documents" className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">Свидетельство о регистрации</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div>
-                                    <span className="text-sm text-muted-foreground">Номер:</span>
-                                    <p className="font-medium">{vehicleData.documents.registration.number}</p>
-                                </div>
-                                <div>
-                                    <span className="text-sm text-muted-foreground">Действует до:</span>
-                                    <p className="font-medium">{vehicleData.documents.registration.expiry}</p>
-                                </div>
-                                <Badge variant="outline" className="text-green-600">
-                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                    Действует
-                                </Badge>
-                            </CardContent>
-                        </Card>
+                                                <div className="grid md:grid-cols-2 gap-4">
+                                                    <div className="flex items-center p-3 bg-muted/20 rounded-lg">
+                                                        <div className="mr-3">
+                                                            {vehicle?.hasRefrigerator ? (
+                                                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                                            ) : (
+                                                                <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-medium">Рефрижератор</div>
+                                                            {vehicle?.hasRefrigerator && vehicle?.refrigeratorMinTempC !== undefined && vehicle?.refrigeratorMaxTempC !== undefined && (
+                                                                <div className="text-sm text-muted-foreground">
+                                                                    Диапазон температур: от {vehicle.refrigeratorMinTempC}°C до {vehicle.refrigeratorMaxTempC}°C
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">Страхование</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div>
-                                    <span className="text-sm text-muted-foreground">Компания:</span>
-                                    <p className="font-medium">{vehicleData.documents.insurance.company}</p>
-                                </div>
-                                <div>
-                                    <span className="text-sm text-muted-foreground">Полис:</span>
-                                    <p className="font-medium">{vehicleData.documents.insurance.policy}</p>
-                                </div>
-                                <div>
-                                    <span className="text-sm text-muted-foreground">Действует до:</span>
-                                    <p className="font-medium">{vehicleData.documents.insurance.expiry}</p>
-                                </div>
-                                <Badge variant="outline" className="text-green-600">
-                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                    Действует
-                                </Badge>
-                            </CardContent>
-                        </Card>
+                                                    <div className="flex items-center p-3 bg-muted/20 rounded-lg">
+                                                        <div className="mr-3">
+                                                            {vehicle?.hasDangerousGoodsPermission ? (
+                                                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                                            ) : (
+                                                                <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-medium">Перевозка опасных грузов</div>
+                                                            <div className="text-sm text-muted-foreground">
+                                                                {vehicle?.hasDangerousGoodsPermission
+                                                                    ? "Имеется разрешение"
+                                                                    : "Нет разрешения"}
+                                                            </div>
+                                                        </div>
+                                                    </div>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">Техосмотр</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div>
-                                    <span className="text-sm text-muted-foreground">Последний:</span>
-                                    <p className="font-medium">{vehicleData.documents.technicalInspection.lastCheck}</p>
-                                </div>
-                                <div>
-                                    <span className="text-sm text-muted-foreground">Следующий до:</span>
-                                    <p className="font-medium">{vehicleData.documents.technicalInspection.nextCheck}</p>
-                                </div>
-                                <Badge variant="outline" className="text-green-600">
-                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                    Актуален
-                                </Badge>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
+                                                    <div className="flex items-center p-3 bg-muted/20 rounded-lg">
+                                                        <div className="mr-3">
+                                                            {vehicle?.hasOversizedCargoPermission ? (
+                                                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                                            ) : (
+                                                                <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-medium">Перевозка негабаритных грузов</div>
+                                                            <div className="text-sm text-muted-foreground">
+                                                                {vehicle?.hasOversizedCargoPermission
+                                                                    ? "Имеется разрешение"
+                                                                    : "Нет разрешения"}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
 
-                <TabsContent value="performance" className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="text-center">
-                                    <Fuel className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                                    <p className="text-sm text-muted-foreground">Расход топлива</p>
-                                    <p className="text-2xl font-bold">{vehicleData.performance.fuelConsumption} л/100км</p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        {/* Документы */}
+                        <TabsContent value="documents">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-lg font-medium">Документы</CardTitle>
+                                    <CardDescription>Информация о документах и сроках проверок</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoading ? (
+                                        <div className="space-y-4">
+                                            <Skeleton className="h-4 w-full" />
+                                            <Skeleton className="h-4 w-3/4" />
+                                            <Skeleton className="h-4 w-5/6" />
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="p-4 border rounded-lg">
+                                                    <h3 className="font-medium mb-3">Регистрация ТС</h3>
+                                                    <div className="space-y-2">
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Срок действия</span>
+                                                            <div>
+                                                                <span className="font-medium">{vehicle?.registrationExpiryDate || 'Не указано'}</span>
+                                                                {vehicle?.registrationExpiryDate && new Date(vehicle.registrationExpiryDate) < new Date() && (
+                                                                    <Badge variant="destructive" className="ml-2">Истек</Badge>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="text-center">
-                                    <Gauge className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                                    <p className="text-sm text-muted-foreground">Средняя скорость</p>
-                                    <p className="text-2xl font-bold">{vehicleData.performance.averageSpeed} км/ч</p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                                <div className="p-4 border rounded-lg">
+                                                    <h3 className="font-medium mb-3">Страховка</h3>
+                                                    <div className="space-y-2">
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Срок действия</span>
+                                                            <div>
+                                                                <span className="font-medium">{vehicle?.insuranceExpiryDate || 'Не указано'}</span>
+                                                                {vehicle?.insuranceExpiryDate && new Date(vehicle.insuranceExpiryDate) < new Date() && (
+                                                                    <Badge variant="destructive" className="ml-2">Истек</Badge>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="text-center">
-                                    <Route className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                                    <p className="text-sm text-muted-foreground">Пройдено за месяц</p>
-                                    <p className="text-2xl font-bold">{vehicleData.performance.totalDistance.toLocaleString()} км</p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                            <div className="p-4 border rounded-lg">
+                                                <h3 className="font-medium mb-3">Техобслуживание</h3>
+                                                <div className="space-y-3">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-muted-foreground">Последнее ТО</span>
+                                                        <span className="font-medium">{vehicle?.lastMaintenanceDate || 'Не указано'}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-muted-foreground">Следующее ТО</span>
+                                                        <div>
+                                                            <span className="font-medium">{vehicle?.nextMaintenanceDate || 'Не указано'}</span>
+                                                            {vehicle?.nextMaintenanceDate && new Date(vehicle.nextMaintenanceDate) < new Date() && (
+                                                                <Badge variant="destructive" className="ml-2">Просрочено</Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
+                </div>
 
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="text-center">
-                                    <Clock className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-                                    <p className="text-sm text-muted-foreground">Рабочих часов</p>
-                                    <p className="text-2xl font-bold">{vehicleData.performance.workingHours} ч</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
+                {/* Боковая информация */}
+                <div className="col-span-1 space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>График производительности</CardTitle>
+                            <CardTitle className="text-lg font-medium">Действия</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <div className="h-64 flex items-center justify-center bg-muted rounded-lg">
-                                <div className="text-center">
-                                    <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                                    <p className="text-muted-foreground">График производительности за период</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        Интеграция с charting библиотекой
-                                    </p>
-                                </div>
-                            </div>
+                        <CardContent className="space-y-4">
+                            <Button className="w-full justify-start" asChild>
+                                <Link to={`/routes/create?vehicleId=${vehicleId}`}>
+                                    <Route className="mr-2 h-4 w-4" /> Назначить на маршрут
+                                </Link>
+                            </Button>
+
+                            <Button variant="outline" className="w-full justify-start">
+                                <Settings className="mr-2 h-4 w-4" /> Техобслуживание
+                            </Button>
+
+                            <Button variant="outline" className="w-full justify-start">
+                                <Info className="mr-2 h-4 w-4" /> История эксплуатации
+                            </Button>
+
+                            <Button variant="outline" className="w-full justify-start">
+                                <FileSpreadsheet className="mr-2 h-4 w-4" /> Документы
+                            </Button>
                         </CardContent>
                     </Card>
-                </TabsContent>
 
-                <TabsContent value="history" className="space-y-4">
+                    {/* Статус */}
                     <Card>
                         <CardHeader>
-                            <CardTitle>История событий</CardTitle>
+                            <CardTitle className="text-lg font-medium">Статус</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-4">
-                                {vehicleData.recentActivity.map((activity, index) => (
-                                    <div key={index} className="flex items-start space-x-4 pb-4 border-b last:border-b-0">
-                                        <div className="w-2 h-2 bg-blue-600 rounded-full mt-2" />
-                                        <div className="flex-1">
-                                            <p className="font-medium">{activity.description}</p>
-                                            <p className="text-sm text-muted-foreground">{activity.details}</p>
-                                            <p className="text-xs text-muted-foreground mt-1">{activity.date}</p>
+                            {isLoading ? (
+                                <Skeleton className="h-24 w-full" />
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="text-center p-4 bg-muted/30 rounded-lg">
+                                        <div className="text-sm text-muted-foreground mb-2">Статус</div>
+                                        <Badge variant={getStatusVariant(vehicle?.status)} className="text-base px-3 py-1">
+                                            {formatStatus(vehicle?.status)}
+                                        </Badge>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Текущий пробег</span>
+                                            <span className="font-medium">{vehicle?.currentOdometerKm || 0} км</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Уровень топлива</span>
+                                            <span className="font-medium">{vehicle?.currentFuelL || 0} / {vehicle?.fuelTankCapacityL || 0} л</span>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
-                </TabsContent>
-            </Tabs>
+
+                    {/* Специальные разрешения */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg font-medium">Специальные разрешения</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {isLoading ? (
+                                <Skeleton className="h-24 w-full" />
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                                        <div>
+                                            {vehicle?.hasDangerousGoodsPermission ? (
+                                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                            ) : (
+                                                <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="font-medium">Опасные грузы (ADR)</div>
+                                            <div className="text-sm text-muted-foreground">
+                                                {vehicle?.hasDangerousGoodsPermission ? "Разрешено" : "Нет разрешения"}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                                        <div>
+                                            {vehicle?.hasOversizedCargoPermission ? (
+                                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                            ) : (
+                                                <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="font-medium">Негабаритные грузы</div>
+                                            <div className="text-sm text-muted-foreground">
+                                                {vehicle?.hasOversizedCargoPermission ? "Разрешено" : "Нет разрешения"}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                                        <div>
+                                            {vehicle?.hasRefrigerator ? (
+                                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                            ) : (
+                                                <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="font-medium">Рефрижератор</div>
+                                            <div className="text-sm text-muted-foreground">
+                                                {vehicle?.hasRefrigerator
+                                                    ? `${vehicle.refrigeratorMinTempC || 0}°C до ${vehicle.refrigeratorMaxTempC || 0}°C`
+                                                    : "Не оборудовано"}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
-    )
+    );
 }

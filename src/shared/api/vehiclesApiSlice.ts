@@ -1,17 +1,23 @@
-import { apiSlice } from './apiSlice'
-import type { VehicleSummary, VehicleDetail } from '@/shared/types/api'
+import { apiSlice } from './apiSlice';
+import type {
+    VehicleSummaryDto,
+    VehicleDetailDto,
+    FuelUpdateDto,
+    OdometerUpdateDto
+} from '@/shared/types/vehicle';
 
-export const vehiclesSlice = apiSlice.injectEndpoints({
+export const vehiclesApiSlice = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
-        getVehicles: builder.query<VehicleSummary[], void>({
+        // CRUD операции
+        getVehicles: builder.query<VehicleSummaryDto[], void>({
             query: () => '/vehicles',
             providesTags: ['Vehicle'],
         }),
-        getVehicle: builder.query<VehicleDetail, number>({
+        getVehicle: builder.query<VehicleDetailDto, number>({
             query: (id) => `/vehicles/${id}`,
             providesTags: (result, error, id) => [{ type: 'Vehicle', id }],
         }),
-        createVehicle: builder.mutation<VehicleDetail, Partial<VehicleDetail>>({
+        createVehicle: builder.mutation<VehicleDetailDto, Partial<VehicleDetailDto>>({
             query: (vehicleData) => ({
                 url: '/vehicles',
                 method: 'POST',
@@ -19,7 +25,7 @@ export const vehiclesSlice = apiSlice.injectEndpoints({
             }),
             invalidatesTags: ['Vehicle'],
         }),
-        updateVehicle: builder.mutation<VehicleDetail, { id: number; data: Partial<VehicleDetail> }>({
+        updateVehicle: builder.mutation<VehicleDetailDto, { id: number; data: Partial<VehicleDetailDto> }>({
             query: ({ id, data }) => ({
                 url: `/vehicles/${id}`,
                 method: 'PUT',
@@ -34,14 +40,18 @@ export const vehiclesSlice = apiSlice.injectEndpoints({
             }),
             invalidatesTags: ['Vehicle'],
         }),
-        updateFuelLevel: builder.mutation<VehicleDetail, { id: number; fuelLevel: number }>({
+
+        // Обновление уровня топлива
+        updateFuelLevel: builder.mutation<VehicleDetailDto, FuelUpdateDto>({
             query: ({ id, fuelLevel }) => ({
                 url: `/vehicles/${id}/fuel-level?fuelLevel=${fuelLevel}`,
                 method: 'PUT',
             }),
             invalidatesTags: (result, error, { id }) => [{ type: 'Vehicle', id }],
         }),
-        updateOdometer: builder.mutation<VehicleDetail, { id: number; odometerValue: number }>({
+
+        // Обновление пробега
+        updateOdometer: builder.mutation<VehicleDetailDto, OdometerUpdateDto>({
             query: ({ id, odometerValue }) => ({
                 url: `/vehicles/${id}/odometer?odometerValue=${odometerValue}`,
                 method: 'PUT',
@@ -49,7 +59,7 @@ export const vehiclesSlice = apiSlice.injectEndpoints({
             invalidatesTags: (result, error, { id }) => [{ type: 'Vehicle', id }],
         }),
     }),
-})
+});
 
 export const {
     useGetVehiclesQuery,
@@ -59,4 +69,4 @@ export const {
     useDeleteVehicleMutation,
     useUpdateFuelLevelMutation,
     useUpdateOdometerMutation,
-} = vehiclesSlice
+} = vehiclesApiSlice;
