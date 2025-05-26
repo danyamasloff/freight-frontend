@@ -45,84 +45,7 @@ export interface MessageResponse {
     message: string
 }
 
-// Типы грузов
-export interface CargoSummary {
-    id: number
-    type: string
-    weight: number
-    status: string
-}
-
-export interface CargoDetail {
-    id: number
-    type: string
-    weight: number
-    volume?: number
-    value?: number
-    description?: string
-    temperatureMin?: number
-    temperatureMax?: number
-    hazardous: boolean
-    specialRequirements?: string[]
-    status: string
-    createdAt: string
-    updatedAt: string
-}
-
-// Типы водителей
-export enum DrivingStatus {
-    DRIVING = 'DRIVING',
-    REST_BREAK = 'REST_BREAK',
-    DAILY_REST = 'DAILY_REST',
-    WEEKLY_REST = 'WEEKLY_REST',
-    OFF_DUTY = 'OFF_DUTY'
-}
-
-export interface DriverSummary {
-    id: number
-    name: string
-    licenseNumber: string
-    status: DrivingStatus
-    currentLocation?: GeoPoint
-}
-
-export interface DriverDetail {
-    id: number
-    name: string
-    firstName: string
-    lastName: string
-    licenseNumber: string
-    licenseCategory: string[]
-    phone: string
-    email?: string
-    experience: number
-    rating?: number
-    status: DrivingStatus
-    currentLocation?: GeoPoint
-    workTimeStart?: string
-    workTimeEnd?: string
-    createdAt: string
-    updatedAt: string
-}
-
-export interface RestStopRecommendation {
-    location: GeoPoint
-    recommendedArrivalTime: string
-    restDuration: number
-    reason: string
-    facilityTypes: string[]
-}
-
-export interface DriverRestAnalysis {
-    compliant: boolean
-    warnings: string[]
-    restStopRecommendations: RestStopRecommendation[]
-    totalDrivingTime: number
-    totalRestTime: number
-    nextMandatoryRest: string
-}
-
-// Типы геокодирования
+// Типы геокодирования (соответствуют Java DTO)
 export interface GeoPoint {
     lat: number
     lng: number
@@ -130,17 +53,24 @@ export interface GeoPoint {
 }
 
 export interface GeoLocation {
+    id?: number
     name: string
-    displayName: string
+    description?: string
+    latitude: number  // Основные поля из Java DTO
+    longitude: number
+    type: string
+    provider?: string
+    displayName?: string
+    category?: string
+    importance?: number
+    boundingBox?: [number, number, number, number]
+
+    // Алиасы для обратной совместимости
     lat: number
     lng: number
-    type: string
-    category: string
-    importance: number
-    boundingBox?: [number, number, number, number]
 }
 
-// Типы маршрутов
+// Типы маршрутов (соответствуют Java DTO)
 export interface RouteRequest {
     name?: string
     startLat: number
@@ -149,15 +79,26 @@ export interface RouteRequest {
     endLon: number
     waypointsLat?: number[]
     waypointsLon?: number[]
+    waypoints?: Array<{
+        latitude: number
+        longitude: number
+        address?: string
+    }>
     startAddress?: string
     endAddress?: string
-    vehicleId?: number
-    driverId?: number
-    cargoId?: number
-    departureTime?: string
+    vehicleId?: number | null
+    driverId?: number | null
+    cargoId?: number | null
+    departureTime?: string | null
+    profile?: string
+    calcPoints?: boolean
+    instructions?: boolean
+    pointsEncoded?: boolean
     avoidTolls?: boolean
     avoidHighways?: boolean
-    avoidFerries?: boolean
+    avoidUrbanAreas?: boolean
+    considerWeather?: boolean
+    considerTraffic?: boolean
 }
 
 export interface RouteInstruction {
@@ -169,10 +110,11 @@ export interface RouteInstruction {
     streetName?: string
 }
 
+// Базовый тип ответа маршрута
 export interface RouteResponse {
     distance: number
     duration: number
-    coordinates: [number, number][]
+    coordinates: number[][]
     instructions: RouteInstruction[]
     startAddress?: string
     endAddress?: string
@@ -188,6 +130,28 @@ export interface RouteResponse {
     estimatedTollCost?: number
     totalEstimatedCost?: number
     fuelConsumption?: number
+    // Соответствие РТО
+    rtoCompliant?: boolean
+    rtoWarnings?: string[]
+    // Геометрия для PostGIS (опционально)
+    geometry?: any
+}
+
+// Расширенный тип для GraphHopper API (соответствует Java RouteResponseDto)
+export interface RouteResponseExtended extends RouteResponse {
+    // Аналитика рисков
+    riskScore?: number
+    weatherRisk?: number
+    roadQualityRisk?: number
+    trafficRisk?: number
+    riskFactors?: string[]
+
+    // Экономические показатели
+    estimatedFuelCost?: number
+    estimatedTollCost?: number
+    totalEstimatedCost?: number
+    fuelConsumption?: number
+
     // Соответствие РТО
     rtoCompliant?: boolean
     rtoWarnings?: string[]
@@ -235,6 +199,98 @@ export interface RouteCreateUpdate {
     cargoId?: number
     departureTime?: string
     waypoints?: GeoPoint[]
+}
+
+// Параметры планирования маршрутов (соответствуют Java эндпоинтам)
+export interface RoutePlanRequest {
+    fromLat: number
+    fromLon: number
+    toLat: number
+    toLon: number
+    vehicleType?: 'car' | 'truck'
+}
+
+export interface RoutePlanByNameRequest {
+    fromPlace: string
+    toPlace: string
+    vehicleType?: 'car' | 'truck'
+}
+
+export interface FindPlaceRequest {
+    query: string
+    placeType?: 'fuel' | 'food' | 'parking' | 'warehouse'
+    lat?: number
+    lon?: number
+}
+
+// POI категории (соответствуют Java эндпоинтам)
+export type POICategory =
+    | 'fuel'        // АЗС
+    | 'food'        // Кафе и рестораны
+    | 'parking'     // Парковки
+    | 'lodging'     // Отели и мотели
+    | 'atms'        // Банкоматы
+    | 'pharmacies'  // Аптеки
+    | 'hospitals'   // Больницы
+
+// Типы водителей
+export enum DrivingStatus {
+    DRIVING = 'DRIVING',
+    REST_BREAK = 'REST_BREAK',
+    DAILY_REST = 'DAILY_REST',
+    WEEKLY_REST = 'WEEKLY_REST',
+    OFF_DUTY = 'OFF_DUTY'
+}
+
+export interface DriverSummary {
+    id: number
+    name: string
+    licenseNumber: string
+    status: DrivingStatus
+    currentLocation?: GeoPoint
+}
+
+export interface DriverDetail {
+    id: number
+    name: string
+    firstName: string
+    lastName: string
+    licenseNumber: string
+    licenseCategory: string[]
+    phone: string
+    email?: string
+    experience: number
+    rating?: number
+    status: DrivingStatus
+    currentLocation?: GeoPoint
+    workTimeStart?: string
+    workTimeEnd?: string
+    createdAt: string
+    updatedAt: string
+}
+
+// Типы грузов
+export interface CargoSummary {
+    id: number
+    type: string
+    weight: number
+    status: string
+}
+
+export interface CargoDetail {
+    id: number
+    type: string
+    weight: number
+    volume?: number
+    value?: number
+    description?: string
+    temperatureMin?: number
+    temperatureMax?: number
+    hazardous: boolean
+    specialRequirements?: string[]
+    status: string
+    createdAt: string
+    updatedAt: string
 }
 
 // Типы транспортных средств
@@ -312,4 +368,22 @@ export interface RouteWeatherForecast {
     hazardWarnings: WeatherHazardWarning[]
     overallRisk: 'LOW' | 'MEDIUM' | 'HIGH'
     recommendations: string[]
+}
+
+// Дополнительные типы для анализа
+export interface RestStopRecommendation {
+    location: GeoPoint
+    recommendedArrivalTime: string
+    restDuration: number
+    reason: string
+    facilityTypes: string[]
+}
+
+export interface DriverRestAnalysis {
+    compliant: boolean
+    warnings: string[]
+    restStopRecommendations: RestStopRecommendation[]
+    totalDrivingTime: number
+    totalRestTime: number
+    nextMandatoryRest: string
 }

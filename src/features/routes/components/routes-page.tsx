@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import {useState} from 'react'
+import {Link} from 'react-router-dom'
 import {
     Plus,
     Search,
@@ -14,13 +14,14 @@ import {
     User,
     Calendar,
     Navigation,
-    CheckCircle2
+    CheckCircle2,
+    Calculator
 } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {Button} from '@/components/ui/button'
+import {Input} from '@/components/ui/input'
+import {Badge} from '@/components/ui/badge'
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {
     Table,
     TableBody,
@@ -36,13 +37,13 @@ import {
     SelectTrigger,
     SelectValue
 } from '@/components/ui/select'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Separator } from '@/components/ui/separator'
+import {Alert, AlertDescription, AlertTitle} from '@/components/ui/alert'
+import {Separator} from '@/components/ui/separator'
 
-import { useGetRoutesQuery } from '@/shared/api/routesSlice'
-import { formatDistance, formatDuration, formatDateTime } from '@/shared/utils/format'
-import { ROUTE_STATUS_CONFIG, type RouteStatus } from '../types'
-import type { RouteSummary } from '@/shared/types/api'
+import {useGetRoutesQuery} from '@/shared/api/routesSlice'
+import {formatDistance, formatDuration, formatDateTime} from '@/shared/utils/format'
+import {ROUTE_STATUS_CONFIG, type RouteStatus} from '../types'
+import type {RouteSummary} from '@/shared/types/api'
 
 export function RoutesPage() {
     const [searchQuery, setSearchQuery] = useState('')
@@ -50,7 +51,7 @@ export function RoutesPage() {
     const [sortBy, setSortBy] = useState('departureTime')
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
-    const { data: routes, isLoading, error } = useGetRoutesQuery()
+    const {data: routes, isLoading, error} = useGetRoutesQuery()
 
     // Filter and sort routes
     const filteredAndSortedRoutes = routes?.filter(route => {
@@ -118,7 +119,7 @@ export function RoutesPage() {
     }
 
     const getRouteStats = () => {
-        if (!routes) return { total: 0, planned: 0, inProgress: 0, completed: 0 }
+        if (!routes) return {total: 0, planned: 0, inProgress: 0, completed: 0}
 
         return {
             total: routes.length,
@@ -133,7 +134,7 @@ export function RoutesPage() {
     if (error) {
         return (
             <Alert variant="destructive" className="mx-auto max-w-4xl mt-8">
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="h-4 w-4"/>
                 <AlertTitle>Ошибка</AlertTitle>
                 <AlertDescription>
                     Не удалось загрузить список маршрутов. Пожалуйста, попробуйте позже.
@@ -151,11 +152,19 @@ export function RoutesPage() {
                         Планирование и управление маршрутами доставки
                     </p>
                 </div>
-                <Button asChild>
-                    <Link to="/routes/create">
-                        <Plus className="mr-2 h-4 w-4" /> Создать маршрут
-                    </Link>
-                </Button>
+                <div className="flex gap-2">
+                    <Button asChild variant="outline">
+                        <Link to="/routes/planner">
+                            <Calculator className="mr-2 h-4 w-4"/>
+                            Планировщик
+                        </Link>
+                    </Button>
+                    <Button asChild>
+                        <Link to="/routes/create">
+                            <Plus className="mr-2 h-4 w-4"/> Создать маршрут
+                        </Link>
+                    </Button>
+                </div>
             </div>
 
             {/* Statistics Cards */}
@@ -167,7 +176,7 @@ export function RoutesPage() {
                                 <p className="text-sm text-muted-foreground">Всего маршрутов</p>
                                 <p className="text-2xl font-bold">{stats.total}</p>
                             </div>
-                            <RouteIcon className="h-8 w-8 text-muted-foreground" />
+                            <RouteIcon className="h-8 w-8 text-muted-foreground"/>
                         </div>
                     </CardContent>
                 </Card>
@@ -179,7 +188,7 @@ export function RoutesPage() {
                                 <p className="text-sm text-muted-foreground">Планируется</p>
                                 <p className="text-2xl font-bold text-blue-600">{stats.planned}</p>
                             </div>
-                            <Calendar className="h-8 w-8 text-blue-600" />
+                            <Calendar className="h-8 w-8 text-blue-600"/>
                         </div>
                     </CardContent>
                 </Card>
@@ -191,7 +200,7 @@ export function RoutesPage() {
                                 <p className="text-sm text-muted-foreground">В пути</p>
                                 <p className="text-2xl font-bold text-green-600">{stats.inProgress}</p>
                             </div>
-                            <Navigation className="h-8 w-8 text-green-600" />
+                            <Navigation className="h-8 w-8 text-green-600"/>
                         </div>
                     </CardContent>
                 </Card>
@@ -203,7 +212,7 @@ export function RoutesPage() {
                                 <p className="text-sm text-muted-foreground">Завершено</p>
                                 <p className="text-2xl font-bold text-gray-600">{stats.completed}</p>
                             </div>
-                            <CheckCircle2 className="h-8 w-8 text-gray-600" />
+                            <CheckCircle2 className="h-8 w-8 text-gray-600"/>
                         </div>
                     </CardContent>
                 </Card>
@@ -220,7 +229,7 @@ export function RoutesPage() {
                     {/* Filters and Search */}
                     <div className="flex items-center justify-between mb-6 gap-4">
                         <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/>
                             <Input
                                 placeholder="Поиск по названию или адресам"
                                 className="pl-9"
@@ -230,17 +239,17 @@ export function RoutesPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <Filter className="h-4 w-4 text-muted-foreground" />
+                            <Filter className="h-4 w-4 text-muted-foreground"/>
                             <Select
                                 value={filterStatus}
                                 onValueChange={(value: RouteStatus | 'ALL') => setFilterStatus(value)}
                             >
                                 <SelectTrigger className="w-48">
-                                    <SelectValue placeholder="Фильтр по статусу" />
+                                    <SelectValue placeholder="Фильтр по статусу"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="ALL">Все статусы</SelectItem>
-                                    <Separator className="my-1" />
+                                    <Separator className="my-1"/>
                                     <SelectItem value="PLANNED">Планируется</SelectItem>
                                     <SelectItem value="IN_PROGRESS">В пути</SelectItem>
                                     <SelectItem value="COMPLETED">Завершен</SelectItem>
@@ -250,7 +259,7 @@ export function RoutesPage() {
 
                             <Select value={sortBy} onValueChange={setSortBy}>
                                 <SelectTrigger className="w-48">
-                                    <SelectValue placeholder="Сортировка" />
+                                    <SelectValue placeholder="Сортировка"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="departureTime">По времени отправления</SelectItem>
@@ -266,19 +275,19 @@ export function RoutesPage() {
                                 size="icon"
                                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                             >
-                                <ArrowUpDown className="h-4 w-4" />
+                                <ArrowUpDown className="h-4 w-4"/>
                             </Button>
                         </div>
                     </div>
 
                     {isLoading ? (
                         <div className="flex justify-center items-center py-12">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <Loader2 className="h-8 w-8 animate-spin text-primary"/>
                             <span className="ml-2 text-muted-foreground">Загрузка маршрутов...</span>
                         </div>
                     ) : filteredAndSortedRoutes.length === 0 ? (
                         <div className="text-center py-12 border rounded-lg bg-muted/10">
-                            <RouteIcon className="h-12 w-12 mx-auto text-muted-foreground" />
+                            <RouteIcon className="h-12 w-12 mx-auto text-muted-foreground"/>
                             <h3 className="mt-4 text-lg font-medium">Маршруты не найдены</h3>
                             <p className="mt-2 text-muted-foreground">
                                 {searchQuery || filterStatus !== 'ALL'
@@ -286,11 +295,18 @@ export function RoutesPage() {
                                     : "Нажмите на кнопку 'Создать маршрут', чтобы создать первый маршрут"}
                             </p>
                             {!(searchQuery || filterStatus !== 'ALL') && (
-                                <Button asChild className="mt-4">
-                                    <Link to="/routes/create">
-                                        <Plus className="mr-2 h-4 w-4" /> Создать маршрут
-                                    </Link>
-                                </Button>
+                                <div className="flex gap-2 justify-center mt-4">
+                                    <Button asChild>
+                                        <Link to="/routes/create">
+                                            <Plus className="mr-2 h-4 w-4"/> Создать маршрут
+                                        </Link>
+                                    </Button>
+                                    <Button asChild variant="outline">
+                                        <Link to="/routes/planner">
+                                            <Calculator className="mr-2 h-4 w-4"/> Планировщик
+                                        </Link>
+                                    </Button>
+                                </div>
                             )}
                         </div>
                     ) : (
@@ -317,12 +333,14 @@ export function RoutesPage() {
                                                     <div className="font-medium">{route.name}</div>
                                                     <div className="text-sm text-muted-foreground">
                                                         <div className="flex items-center gap-1 mb-1">
-                                                            <MapPin className="h-3 w-3" />
-                                                            <span className="max-w-48 truncate">{route.startAddress}</span>
+                                                            <MapPin className="h-3 w-3"/>
+                                                            <span
+                                                                className="max-w-48 truncate">{route.startAddress}</span>
                                                         </div>
                                                         <div className="flex items-center gap-1">
-                                                            <MapPin className="h-3 w-3" />
-                                                            <span className="max-w-48 truncate">{route.endAddress}</span>
+                                                            <MapPin className="h-3 w-3"/>
+                                                            <span
+                                                                className="max-w-48 truncate">{route.endAddress}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -333,11 +351,12 @@ export function RoutesPage() {
                                             <TableCell>
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-1 text-sm">
-                                                        <RouteIcon className="h-3 w-3 text-muted-foreground" />
+                                                        <RouteIcon className="h-3 w-3 text-muted-foreground"/>
                                                         {formatDistance(route.distance)}
                                                     </div>
-                                                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                                        <Clock className="h-3 w-3" />
+                                                    <div
+                                                        className="flex items-center gap-1 text-sm text-muted-foreground">
+                                                        <Clock className="h-3 w-3"/>
                                                         {formatDuration(route.duration)}
                                                     </div>
                                                 </div>
@@ -346,13 +365,13 @@ export function RoutesPage() {
                                                 <div className="flex gap-1">
                                                     {route.vehicleId && (
                                                         <Badge variant="outline" className="text-xs">
-                                                            <Truck className="h-3 w-3 mr-1" />
+                                                            <Truck className="h-3 w-3 mr-1"/>
                                                             ТС
                                                         </Badge>
                                                     )}
                                                     {route.driverId && (
                                                         <Badge variant="outline" className="text-xs">
-                                                            <User className="h-3 w-3 mr-1" />
+                                                            <User className="h-3 w-3 mr-1"/>
                                                             Водитель
                                                         </Badge>
                                                     )}

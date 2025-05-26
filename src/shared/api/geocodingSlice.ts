@@ -26,6 +26,20 @@ export const geocodingSlice = apiSlice.injectEndpoints({
                 return `/geocoding/search?${searchParams}`
             },
         }),
+        findPlace: builder.query<GeoLocation[], {
+            query: string
+            placeType?: string
+            lat?: number
+            lon?: number
+        }>({
+            query: ({ query, placeType, lat, lon }) => {
+                const params = new URLSearchParams({ query })
+                if (placeType) params.append('placeType', placeType)
+                if (lat) params.append('lat', lat.toString())
+                if (lon) params.append('lon', lon.toString())
+                return `/routes/find-place?${params}`
+            },
+        }),
         getFuelStations: builder.query<GeoLocation[], {
             lat: number
             lon: number
@@ -74,6 +88,22 @@ export const geocodingSlice = apiSlice.injectEndpoints({
             query: ({ lat, lon, radius = 5000 }) =>
                 `/geocoding/atms?lat=${lat}&lon=${lon}&radius=${radius}`,
         }),
+        getPharmacies: builder.query<GeoLocation[], {
+            lat: number
+            lon: number
+            radius?: number
+        }>({
+            query: ({ lat, lon, radius = 5000 }) =>
+                `/geocoding/pharmacies?lat=${lat}&lon=${lon}&radius=${radius}`,
+        }),
+        getHospitals: builder.query<GeoLocation[], {
+            lat: number
+            lon: number
+            radius?: number
+        }>({
+            query: ({ lat, lon, radius = 10000 }) =>
+                `/geocoding/hospitals?lat=${lat}&lon=${lon}&radius=${radius}`,
+        }),
     }),
 })
 
@@ -81,10 +111,13 @@ export const {
     useGeocodeQuery,
     useReverseGeocodeQuery,
     useSearchPlacesQuery,
+    useFindPlaceQuery,
     useGetFuelStationsQuery,
     useGetRestAreasQuery,
     useGetFoodStopsQuery,
     useGetParkingQuery,
     useGetLodgingQuery,
     useGetAtmsQuery,
+    useGetPharmaciesQuery,
+    useGetHospitalsQuery,
 } = geocodingSlice

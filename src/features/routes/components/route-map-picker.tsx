@@ -25,6 +25,7 @@ import {
     Fuel,
     AlertTriangle,
     Map as MapIconLucide,
+    Activity,
     Crosshair,
     Target,
     CheckCircle2,
@@ -40,11 +41,12 @@ import {
     Hotel,
     Coffee,
     ParkingSquare,
-    Banknote
+    Banknote,
+    ChevronRight
 } from 'lucide-react'
 import { formatDistance, formatDuration, formatCurrency } from '@/shared/utils/format'
 import { useToast } from '@/hooks/use-toast'
-import { useCalculateRouteMutation, usePlanRouteByNamesQuery } from '@/shared/api/routesSlice'
+import { useCalculateRouteMutation } from '@/shared/api/routesSlice'
 import { useFindPlaceQuery, useGetFuelStationsQuery, useGetRestAreasQuery, useGetFoodStopsQuery, useGetParkingQuery, useGetLodgingQuery, useGetAtmsQuery } from '@/shared/api/geocodingSlice'
 import { useDebounce } from 'use-debounce'
 
@@ -76,7 +78,7 @@ interface RouteMapPickerBackendProps {
 
 const YANDEX_API_KEY = import.meta.env.VITE_YANDEX_MAPS_API_KEY
 
-export function RouteMapPickerBackend({
+export function RouteMapPicker({
                                           startAddress: initialStartAddress,
                                           endAddress: initialEndAddress,
                                           startCoords: initialStartCoords,
@@ -163,20 +165,30 @@ export function RouteMapPickerBackend({
     )
 
     const handleMapLoad = useCallback((ymaps: any) => {
+        if (!ymaps) return; // Добавляем проверку
+
         ymapsRef.current = ymaps
         console.log('Yandex Maps API loaded')
     }, [])
 
     const handleMapReady = useCallback((map: any) => {
+        if (!map) return; // Добавляем проверку на null
+
         mapRef.current = map
 
         if (startCoords && endCoords) {
-            const bounds = ymapsRef.current?.util.bounds.fromPoints([startCoords, endCoords])
-            if (bounds) {
-                map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 })
+            // Также проверяем наличие ymapsRef.current
+            if (ymapsRef.current && ymapsRef.current.util) {
+                const bounds = ymapsRef.current.util.bounds.fromPoints([startCoords, endCoords])
+                if (bounds && map.setBounds) {
+                    map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 })
+                }
             }
         } else if (startCoords) {
-            map.setCenter(startCoords, 13)
+            // Проверяем наличие метода setCenter
+            if (map.setCenter) {
+                map.setCenter(startCoords, 13)
+            }
         }
     }, [startCoords, endCoords])
 
@@ -223,6 +235,7 @@ export function RouteMapPickerBackend({
         }
 
         try {
+            // Правильный формат запроса согласно RouteRequestDto на бэкенде
             const routeRequest = {
                 startLat: startCoords[0],
                 startLon: startCoords[1],
@@ -230,23 +243,44 @@ export function RouteMapPickerBackend({
                 endLon: endCoords[1],
                 startAddress: startAddress || 'Начальная точка',
                 endAddress: endAddress || 'Конечная точка',
-                vehicleId,
-                driverId,
-                cargoId,
+                vehicleId: vehicleId || null, // Изменено с undefined
+                driverId: driverId || null,
+                cargoId: cargoId || null,
+                departureTime: null, // Явно указываем null
                 waypoints: waypoints.map(wp => ({
                     latitude: wp.lat,
                     longitude: wp.lng,
-                    address: wp.address
-                }))
+                    address: wp.address || ''
+                })),
+                // Добавляем недостающие поля из RouteRequestDto
+                profile: 'car', // или 'truck'
+                calcPoints: true,
+                instructions: true,
+                pointsEncoded: false,
+                avoidTolls: false,
+                avoidHighways: false,
+                avoidUrbanAreas: false,
+                considerWeather: false,
+                considerTraffic: false
             }
+
+            console.log('Sending route request:', routeRequest) // Для отладки
 
             const result = await calculateRoute(routeRequest).unwrap()
 
-            if (result.coordinates && result.coordinates.length > 0) {
+            console.log('Route response:', result) // Для отладки
+
+            if (result && result.coordinates && result.coordinates.length > 0) {
                 // Преобразуем координаты для Yandex Maps
-                const yandexCoords = result.coordinates.map((coord: number[]) =>
-                    [coord[1], coord[0]] as [number, number] // GraphHopper: [lng, lat], Yandex: [lat, lng]
-                )
+                const yandexCoords = result.coordinates.map((coord: number[]) => {
+                    // Проверяем формат координат
+                    if (Array.isArray(coord) && coord.length >= 2) {
+                        return [coord[1], coord[0]] as [number, number] // GraphHopper: [lng, lat], Yandex: [lat, lng]
+                    }
+                    return null
+                }).filter(coord => coord !== null) as [number, number][]
+
+                console.log('Converted coordinates for Yandex:', yandexCoords) // Для отладки
 
                 setRouteCoordinates(yandexCoords)
                 setRouteInfo(result)
@@ -254,20 +288,38 @@ export function RouteMapPickerBackend({
 
                 toast({
                     title: "Маршрут построен",
-                    description: `${formatDistance(result.distance * 1000)} • ${formatDuration(result.duration * 60)}`
+                    description: `${formatDistance(result.distance * 1000)} • ${formatDuration(result.duration)}`
                 })
 
                 // Подгоняем карту под маршрут
-                if (mapRef.current && ymapsRef.current) {
-                    const bounds = ymapsRef.current.util.bounds.fromPoints(yandexCoords)
-                    mapRef.current.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 })
+                if (mapRef.current && ymapsRef.current && yandexCoords.length > 0) {
+                    try {
+                        const bounds = ymapsRef.current.util.bounds.fromPoints(yandexCoords)
+                        mapRef.current.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 })
+                    } catch (error) {
+                        console.error('Error setting bounds:', error)
+                    }
                 }
+            } else {
+                throw new Error('Маршрут не содержит координат')
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Route calculation error:', error)
+
+            // Более детальная обработка ошибок
+            let errorMessage = "Не удалось рассчитать маршрут."
+
+            if (error.status === 400) {
+                errorMessage = "Неверные параметры запроса. Проверьте координаты."
+            } else if (error.status === 404) {
+                errorMessage = "Маршрут не найден между указанными точками."
+            } else if (error.data?.message) {
+                errorMessage = error.data.message
+            }
+
             toast({
                 title: "Ошибка построения маршрута",
-                description: "Не удалось рассчитать маршрут. Проверьте соединение с сервером.",
+                description: errorMessage,
                 variant: "destructive"
             })
         }
@@ -370,7 +422,7 @@ export function RouteMapPickerBackend({
                                     <DropdownMenuLabel>Настройки карты</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={() => setTrafficEnabled(!trafficEnabled)}>
-                                        <Traffic className="h-4 w-4 mr-2" />
+                                        <Activity className="h-4 w-4 mr-2" /> {/* Заменили Traffic на Activity */}
                                         {trafficEnabled ? 'Скрыть пробки' : 'Показать пробки'}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setShowPOI(!showPOI)}>
@@ -638,7 +690,11 @@ export function RouteMapPickerBackend({
                                     yandexMapDisablePoiInteractivity: true
                                 }}
                                 onLoad={handleMapLoad}
-                                instanceRef={handleMapReady}
+                                instanceRef={(ref) => {
+                                    if (ref) {
+                                        handleMapReady(ref)
+                                    }
+                                }}
                                 onClick={handleMapClick}
                             >
                                 {/* Controls */}
@@ -737,15 +793,18 @@ export function RouteMapPickerBackend({
 
                                 {/* Route Polyline */}
                                 {routeCoordinates.length > 0 && (
-                                    <Polyline
-                                        geometry={routeCoordinates}
-                                        options={{
-                                            strokeColor: vehicleType === 'truck' ? '#1e40af' : '#16a34a',
-                                            strokeWidth: 5,
-                                            strokeOpacity: 0.8,
-                                            strokeStyle: 'solid'
-                                        }}
-                                    />
+                                    <>
+                                        {console.log('Rendering polyline with coordinates:', routeCoordinates)}
+                                        <Polyline
+                                            geometry={routeCoordinates}
+                                            options={{
+                                                strokeColor: vehicleType === 'truck' ? '#1e40af' : '#16a34a',
+                                                strokeWidth: 5,
+                                                strokeOpacity: 0.8,
+                                                strokeStyle: 'solid'
+                                            }}
+                                        />
+                                    </>
                                 )}
 
                                 {/* POI Markers */}

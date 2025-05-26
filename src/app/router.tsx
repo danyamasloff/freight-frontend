@@ -1,3 +1,5 @@
+// src/app/router.tsx
+
 import {Routes, Route, Navigate} from 'react-router-dom'
 import {Layout} from '@/widgets/layout'
 import {ProtectedRoute} from '@/components/protected-route'
@@ -7,6 +9,7 @@ import {DashboardPage} from '@/pages/dashboard'
 import {RoutesPage} from '@/pages/routes/index'
 import {RouteDetailPage} from '@/pages/routes/route-details'
 import {CreateRoutePage} from '@/pages/routes/create-route'
+import {RoutePlannerPage} from '@/pages/routes/route-planner' // Новая страница
 import {
     DriversPage,
     DriverDetailPage,
@@ -44,6 +47,7 @@ export function AppRouter() {
                 <Route path={ROUTES.ROUTES} element={<RoutesPage/>}/>
                 <Route path={ROUTES.ROUTE_DETAILS} element={<RouteDetailPage/>}/>
                 <Route path={ROUTES.ROUTE_CREATE} element={<CreateRoutePage/>}/>
+                <Route path={ROUTES.ROUTE_PLANNER} element={<RoutePlannerPage/>}/> {/* Новый маршрут */}
 
                 {/* Водители */}
                 <Route path={ROUTES.DRIVERS} element={<DriversPage/>}/>

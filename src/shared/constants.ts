@@ -17,6 +17,7 @@ export const ROUTES = {
     ROUTE_DETAILS: '/routes/:id',
     ROUTE_CREATE: '/routes/create',
     ROUTE_EDIT: '/routes/edit/:id',
+    ROUTE_PLANNER: '/routes/planner', // Новый маршрут
 
     // Водители
     DRIVERS: '/drivers',

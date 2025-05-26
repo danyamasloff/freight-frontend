@@ -44,7 +44,8 @@ export const routesSlice = apiSlice.injectEndpoints({
             }),
             invalidatesTags: ['Route'],
         }),
-        // Расчет маршрутов
+
+        // Расчет маршрутов - ОБЯЗАТЕЛЬНО mutation для POST запросов
         calculateRoute: builder.mutation<RouteResponse, RouteRequest>({
             query: (routeData) => ({
                 url: '/routes/calculate',
@@ -52,6 +53,8 @@ export const routesSlice = apiSlice.injectEndpoints({
                 body: routeData,
             }),
         }),
+
+        // Планирование маршрута по координатам - используем query для GET
         planRoute: builder.query<RouteResponse, {
             fromLat: number
             fromLon: number
@@ -62,6 +65,8 @@ export const routesSlice = apiSlice.injectEndpoints({
             query: ({ fromLat, fromLon, toLat, toLon, vehicleType = 'truck' }) =>
                 `/routes/plan?fromLat=${fromLat}&fromLon=${fromLon}&toLat=${toLat}&toLon=${toLon}&vehicleType=${vehicleType}`,
         }),
+
+        // Планирование маршрута по названиям - используем query для GET
         planRouteByNames: builder.query<RouteResponse, {
             fromPlace: string
             toPlace: string
@@ -70,7 +75,8 @@ export const routesSlice = apiSlice.injectEndpoints({
             query: ({ fromPlace, toPlace, vehicleType = 'truck' }) =>
                 `/routes/plan-by-name?fromPlace=${encodeURIComponent(fromPlace)}&toPlace=${encodeURIComponent(toPlace)}&vehicleType=${vehicleType}`,
         }),
-        // Поиск мест
+
+        // Поиск мест - query для GET
         findPlace: builder.query<GeoLocation[], {
             query: string
             placeType?: string
@@ -85,7 +91,8 @@ export const routesSlice = apiSlice.injectEndpoints({
                 return `/routes/find-place?${params}`
             },
         }),
-        // Погода на маршруте
+
+        // Погода на маршруте - mutation для POST
         getRouteWeatherForecast: builder.mutation<RouteWeatherForecast, {
             route: RouteResponse
             departureTime?: string
@@ -96,6 +103,8 @@ export const routesSlice = apiSlice.injectEndpoints({
                 body: route,
             }),
         }),
+
+        // Погодные предупреждения - mutation для POST
         getWeatherHazards: builder.mutation<WeatherHazardWarning[], {
             route: RouteResponse
             departureTime?: string
@@ -115,7 +124,7 @@ export const {
     useCreateRouteMutation,
     useUpdateRouteMutation,
     useDeleteRouteMutation,
-    useCalculateRouteMutation,
+    useCalculateRouteMutation, // Правильное название для mutation
     usePlanRouteQuery,
     usePlanRouteByNamesQuery,
     useFindPlaceQuery,

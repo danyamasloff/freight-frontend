@@ -17,6 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
+import { DateTimePicker } from '@/components/ui/date-time-picker'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
     MapPin,
     Navigation,
@@ -27,10 +29,14 @@ import {
     Loader2,
     Plus,
     X,
-    Search
+    Search,
+    Calendar,
+    Info,
+    Map
 } from 'lucide-react'
 
 import { routeFormSchema, type RouteFormValues, type RouteDetail } from '../types'
+import { RouteMapPicker } from './route-map-picker.tsx'
 
 interface RouteFormProps {
     initialData?: Partial<RouteDetail>
@@ -45,9 +51,9 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
     const [createRoute, { isLoading: isCreating }] = useCreateRouteMutation()
     const [updateRoute, { isLoading: isUpdating }] = useUpdateRouteMutation()
 
-    const { data: drivers } = useGetDriversQuery()
-    const { data: vehicles } = useGetVehiclesQuery()
-    const { data: cargos } = useGetCargosQuery()
+    const { data: drivers, isLoading: driversLoading } = useGetDriversQuery()
+    const { data: vehicles, isLoading: vehiclesLoading } = useGetVehiclesQuery()
+    const { data: cargos, isLoading: cargosLoading } = useGetCargosQuery()
 
     const isLoading = isCreating || isUpdating
     const isEditMode = !!id
@@ -62,6 +68,10 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
             startLon: 0,
             endLat: 0,
             endLon: 0,
+            vehicleId: undefined,
+            driverId: undefined,
+            cargoId: undefined,
+            departureTime: undefined,
             avoidTolls: false,
             avoidHighways: false,
             avoidFerries: false,
@@ -125,14 +135,18 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
         form.setValue('waypoints', currentWaypoints.filter((_, i) => i !== index))
     }
 
-    const searchAddress = async (address: string, field: 'start' | 'end' | number) => {
-        // Placeholder for geocoding functionality
-        // In real implementation, you would use a geocoding service
-        console.log('Searching address:', address, 'for field:', field)
+    // Проверка наличия координат для карты
+    const hasCoordinates = () => {
+        const startLat = form.watch('startLat')
+        const startLon = form.watch('startLon')
+        const endLat = form.watch('endLat')
+        const endLon = form.watch('endLon')
+
+        return (startLat !== 0 || startLon !== 0) && (endLat !== 0 || endLon !== 0)
     }
 
     return (
-        <Card className="w-full max-w-4xl mx-auto">
+        <Card className="w-full max-w-6xl mx-auto">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Navigation className="h-5 w-5" />
@@ -146,8 +160,12 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         <Tabs value={activeTab} onValueChange={setActiveTab}>
-                            <TabsList className="grid w-full grid-cols-4">
+                            <TabsList className="grid w-full grid-cols-5">
                                 <TabsTrigger value="route">Маршрут</TabsTrigger>
+                                <TabsTrigger value="map">
+                                    <Map className="h-4 w-4 mr-1" />
+                                    Карта
+                                </TabsTrigger>
                                 <TabsTrigger value="resources">Ресурсы</TabsTrigger>
                                 <TabsTrigger value="options">Параметры</TabsTrigger>
                                 <TabsTrigger value="schedule">Расписание</TabsTrigger>
@@ -162,8 +180,11 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                         <FormItem>
                                             <FormLabel>Название маршрута</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Введите название маршрута" {...field} />
+                                                <Input placeholder="Например: Москва - Санкт-Петербург экспресс" {...field} />
                                             </FormControl>
+                                            <FormDescription>
+                                                Дайте маршруту понятное название для быстрой идентификации
+                                            </FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -183,10 +204,6 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                                             placeholder="Введите адрес отправления"
                                                             className="pl-10"
                                                             {...field}
-                                                            onChange={(e) => {
-                                                                field.onChange(e)
-                                                                searchAddress(e.target.value, 'start')
-                                                            }}
                                                         />
                                                     </div>
                                                 </FormControl>
@@ -208,10 +225,6 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                                             placeholder="Введите адрес назначения"
                                                             className="pl-10"
                                                             {...field}
-                                                            onChange={(e) => {
-                                                                field.onChange(e)
-                                                                searchAddress(e.target.value, 'end')
-                                                            }}
                                                         />
                                                     </div>
                                                 </FormControl>
@@ -221,87 +234,105 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <FormField
-                                            control={form.control}
-                                            name="startLat"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Широта (старт)</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            type="number"
-                                                            step="any"
-                                                            placeholder="55.7558"
-                                                            {...field}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
+                                <Alert>
+                                    <Info className="h-4 w-4" />
+                                    <AlertDescription>
+                                        Координаты будут определены автоматически при построении маршрута на карте.
+                                        Вы также можете указать их вручную ниже.
+                                    </AlertDescription>
+                                </Alert>
 
-                                        <FormField
-                                            control={form.control}
-                                            name="startLon"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Долгота (старт)</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            type="number"
-                                                            step="any"
-                                                            placeholder="37.6176"
-                                                            {...field}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
+                                <details className="space-y-4">
+                                    <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+                                        Показать координаты (необязательно)
+                                    </summary>
+
+                                    <div className="grid grid-cols-2 gap-4 mt-4">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <FormField
+                                                control={form.control}
+                                                name="startLat"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Широта (старт)</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                step="any"
+                                                                placeholder="55.7558"
+                                                                {...field}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={form.control}
+                                                name="startLon"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Долгота (старт)</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                step="any"
+                                                                placeholder="37.6176"
+                                                                {...field}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <FormField
+                                                control={form.control}
+                                                name="endLat"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Широта (финиш)</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                step="any"
+                                                                placeholder="59.9311"
+                                                                {...field}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={form.control}
+                                                name="endLon"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Долгота (финиш)</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                step="any"
+                                                                placeholder="30.3609"
+                                                                {...field}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
                                     </div>
-
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <FormField
-                                            control={form.control}
-                                            name="endLat"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Широта (финиш)</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            type="number"
-                                                            step="any"
-                                                            placeholder="55.7558"
-                                                            {...field}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-
-                                        <FormField
-                                            control={form.control}
-                                            name="endLon"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Долгота (финиш)</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            type="number"
-                                                            step="any"
-                                                            placeholder="37.6176"
-                                                            {...field}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
-                                </div>
+                                </details>
 
                                 <Separator />
 
@@ -350,6 +381,7 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                                                     type="number"
                                                                     step="any"
                                                                     {...field}
+                                                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                                                 />
                                                             </FormControl>
                                                         </FormItem>
@@ -367,6 +399,7 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                                                     type="number"
                                                                     step="any"
                                                                     {...field}
+                                                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                                                 />
                                                             </FormControl>
                                                         </FormItem>
@@ -387,6 +420,50 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                 </div>
                             </TabsContent>
 
+                            {/* Map Tab */}
+                            <TabsContent value="map" className="space-y-4 pt-4">
+                                <RouteMapPicker
+                                    startAddress={form.watch('startAddress')}
+                                    endAddress={form.watch('endAddress')}
+                                    startCoords={
+                                        form.watch('startLat') && form.watch('startLon')
+                                            ? [form.watch('startLat'), form.watch('startLon')]
+                                            : undefined
+                                    }
+                                    endCoords={
+                                        form.watch('endLat') && form.watch('endLon')
+                                            ? [form.watch('endLat'), form.watch('endLon')]
+                                            : undefined
+                                    }
+                                    waypoints={form.watch('waypoints') || []}
+                                    vehicleType={
+                                        vehicles?.find(v => v.id === form.watch('vehicleId'))?.brand?.toLowerCase().includes('car')
+                                            ? 'car'
+                                            : 'truck'
+                                    }
+                                    vehicleId={form.watch('vehicleId')}
+                                    driverId={form.watch('driverId')}
+                                    cargoId={form.watch('cargoId')}
+                                    onStartChange={(coords, address) => {
+                                        form.setValue('startLat', coords[0])
+                                        form.setValue('startLon', coords[1])
+                                        if (address) form.setValue('startAddress', address)
+                                    }}
+                                    onEndChange={(coords, address) => {
+                                        form.setValue('endLat', coords[0])
+                                        form.setValue('endLon', coords[1])
+                                        if (address) form.setValue('endAddress', address)
+                                    }}
+                                    onWaypointsChange={(waypoints) => {
+                                        form.setValue('waypoints', waypoints)
+                                    }}
+                                    onRouteBuilt={(route) => {
+                                        // Можно сохранить дополнительную информацию о маршруте
+                                        console.log('Route built:', route)
+                                    }}
+                                />
+                            </TabsContent>
+
                             {/* Resources Assignment */}
                             <TabsContent value="resources" className="space-y-4 pt-4">
                                 <FormField
@@ -394,7 +471,7 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                     name="vehicleId"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Транспортное средство</FormLabel>
+                                            <FormLabel>Транспортное средство *</FormLabel>
                                             <Select
                                                 onValueChange={(value) => field.onChange(parseInt(value))}
                                                 value={field.value?.toString()}
@@ -405,16 +482,30 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {vehicles?.map((vehicle) => (
-                                                        <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
-                                                            <div className="flex items-center gap-2">
-                                                                <Truck className="h-4 w-4" />
-                                                                <span>{vehicle.licensePlate} - {vehicle.brand} {vehicle.model}</span>
-                                                            </div>
+                                                    {vehiclesLoading ? (
+                                                        <SelectItem value="loading" disabled>
+                                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                            Загрузка...
                                                         </SelectItem>
-                                                    ))}
+                                                    ) : vehicles?.length === 0 ? (
+                                                        <SelectItem value="empty" disabled>
+                                                            Нет доступных ТС
+                                                        </SelectItem>
+                                                    ) : (
+                                                        vehicles?.map((vehicle) => (
+                                                            <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Truck className="h-4 w-4" />
+                                                                    <span>{vehicle.licensePlate} - {vehicle.brand} {vehicle.model}</span>
+                                                                </div>
+                                                            </SelectItem>
+                                                        ))
+                                                    )}
                                                 </SelectContent>
                                             </Select>
+                                            <FormDescription>
+                                                Выберите транспортное средство для выполнения маршрута
+                                            </FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -432,20 +523,31 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                             >
                                                 <FormControl>
                                                     <SelectTrigger>
-                                                        <SelectValue placeholder="Выберите водителя" />
+                                                        <SelectValue placeholder="Выберите водителя (необязательно)" />
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {drivers?.map((driver) => (
-                                                        <SelectItem key={driver.id} value={driver.id.toString()}>
-                                                            <div className="flex items-center gap-2">
-                                                                <User className="h-4 w-4" />
-                                                                <span>{driver.name}</span>
-                                                            </div>
+                                                    <SelectItem value="0">Не назначен</SelectItem>
+                                                    {driversLoading ? (
+                                                        <SelectItem value="loading" disabled>
+                                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                            Загрузка...
                                                         </SelectItem>
-                                                    ))}
+                                                    ) : (
+                                                        drivers?.map((driver) => (
+                                                            <SelectItem key={driver.id} value={driver.id.toString()}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <User className="h-4 w-4" />
+                                                                    <span>{driver.name}</span>
+                                                                </div>
+                                                            </SelectItem>
+                                                        ))
+                                                    )}
                                                 </SelectContent>
                                             </Select>
+                                            <FormDescription>
+                                                Назначьте водителя для маршрута
+                                            </FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -463,20 +565,31 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                             >
                                                 <FormControl>
                                                     <SelectTrigger>
-                                                        <SelectValue placeholder="Выберите груз" />
+                                                        <SelectValue placeholder="Выберите груз (необязательно)" />
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {cargos?.map((cargo) => (
-                                                        <SelectItem key={cargo.id} value={cargo.id.toString()}>
-                                                            <div className="flex items-center gap-2">
-                                                                <Package className="h-4 w-4" />
-                                                                <span>{cargo.name} ({cargo.weightKg} кг)</span>
-                                                            </div>
+                                                    <SelectItem value="0">Не назначен</SelectItem>
+                                                    {cargosLoading ? (
+                                                        <SelectItem value="loading" disabled>
+                                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                            Загрузка...
                                                         </SelectItem>
-                                                    ))}
+                                                    ) : (
+                                                        cargos?.map((cargo) => (
+                                                            <SelectItem key={cargo.id} value={cargo.id.toString()}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Package className="h-4 w-4" />
+                                                                    <span>{cargo.name} ({cargo.weightKg} кг)</span>
+                                                                </div>
+                                                            </SelectItem>
+                                                        ))
+                                                    )}
                                                 </SelectContent>
                                             </Select>
+                                            <FormDescription>
+                                                Выберите груз для перевозки
+                                            </FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -560,9 +673,9 @@ export function RouteForm({ initialData, id }: RouteFormProps) {
                                         <FormItem>
                                             <FormLabel>Время отправления</FormLabel>
                                             <FormControl>
-                                                <Input
-                                                    type="datetime-local"
-                                                    {...field}
+                                                <DateTimePicker
+                                                    date={field.value ? new Date(field.value) : undefined}
+                                                    setDate={(date) => field.onChange(date?.toISOString())}
                                                 />
                                             </FormControl>
                                             <FormDescription>
