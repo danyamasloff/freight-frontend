@@ -47,6 +47,9 @@ export const ROUTES = {
     ANALYTICS: '/analytics',
     COMPLIANCE: '/compliance',
     SETTINGS: '/settings',
+
+    // Демо страницы
+    WEATHER_ROUTE_DEMO: '/demo/weather-route',
 } as const
 
 export const QUERY_KEYS = {
@@ -71,6 +74,23 @@ export const STORAGE_KEYS = {
     sidebar: 'sidebar-store',
 } as const
 
+// API Endpoints для маршрутов
+export const API_ENDPOINTS = {
+    ROUTES: {
+        BASE: '/routes',
+        CALCULATE: '/routes/calculate',
+        PLAN: '/routes/plan',
+        PLAN_BY_NAME: '/routes/plan-by-name',
+        FIND_PLACE: '/routes/find-place',
+        WEATHER_FORECAST: '/routes/weather-forecast',
+        WEATHER_HAZARDS: '/routes/weather-hazards',
+    },
+    WEATHER: {
+        CURRENT: '/weather/current',
+        FORECAST: '/weather/forecast',
+    }
+} as const
+
 // Статусы
 export const VEHICLE_STATUS = {
     AVAILABLE: 'AVAILABLE',
@@ -85,6 +105,8 @@ export const DRIVER_STATUS = {
     DAILY_REST: 'DAILY_REST',
     WEEKLY_REST: 'WEEKLY_REST',
     OFF_DUTY: 'OFF_DUTY',
+    OTHER_WORK: 'OTHER_WORK',
+    AVAILABILITY: 'AVAILABILITY',
 } as const
 
 export const ROUTE_STATUS = {

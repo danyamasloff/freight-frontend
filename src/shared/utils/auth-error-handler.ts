@@ -19,10 +19,16 @@ export const handle401Error = (error: any) => {
     return false
 }
 
-// В baseQuery можно добавить обработку ошибок:
-baseQuery: fetchBaseQuery({
+// Пример использования в baseQuery:
+export const createBaseQueryWithAuth = () => fetchBaseQuery({
     baseUrl: import.meta.env.VITE_API_BASE_URL,
-    prepareHeaders: /* ... */,
+    prepareHeaders: (headers, { getState }) => {
+        const token = localStorage.getItem('token')
+        if (token) {
+            headers.set('authorization', `Bearer ${token}`)
+        }
+        return headers
+    },
     validateStatus: (response, body) => {
         if (response.status === 401) {
             handle401Error({ status: 401 })
@@ -30,4 +36,4 @@ baseQuery: fetchBaseQuery({
         }
         return response.status >= 200 && response.status < 300
     }
-});
+})

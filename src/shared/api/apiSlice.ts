@@ -25,6 +25,6 @@ export const apiSlice = createApi({
             return headers
         },
     }),
-    tagTypes: ['Route', 'Driver', 'Vehicle', 'Cargo', 'User'],
+    tagTypes: ['Route', 'Driver', 'Vehicle', 'Cargo', 'User', 'Notification', 'Weather'],
     endpoints: () => ({}),
 })

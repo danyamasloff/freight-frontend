@@ -34,13 +34,10 @@ export const routeFormSchema = z.object({
     startLon: z.coerce.number().min(-180).max(180),
     endLat: z.coerce.number().min(-90).max(90),
     endLon: z.coerce.number().min(-180).max(180),
-    vehicleId: z.coerce.number().optional(),
+    vehicleId: z.coerce.number().min(1, 'Выберите транспортное средство'),
     driverId: z.coerce.number().optional(),
     cargoId: z.coerce.number().optional(),
     departureTime: z.string().optional(),
-    avoidTolls: z.boolean().default(false),
-    avoidHighways: z.boolean().default(false),
-    avoidFerries: z.boolean().default(false),
     waypoints: z.array(z.object({
         lat: z.number(),
         lng: z.number(),
@@ -131,3 +128,121 @@ export const OPTIMIZATION_STRATEGIES = [
     { value: 'balanced', label: 'Сбалансированный' },
     { value: 'economical', label: 'Экономичный' },
 ] as const
+
+export interface RoutePlanningRequest {
+    startAddress: string
+    endAddress: string
+    vehicleType: 'truck' | 'van' | 'car'
+    departureTime?: string
+    waypoints?: RouteWaypoint[]
+}
+
+export interface RouteWaypoint {
+    lat: number
+    lon: number
+    address?: string
+    stopType?: 'fuel' | 'rest' | 'delivery' | 'pickup'
+    duration?: number // в минутах
+}
+
+export interface DetailedRouteResponse {
+    id?: string
+    startPoint: string
+    endPoint: string
+    distance: number
+    duration: number // в минутах
+    fuelConsumption: number
+    fuelCost: number
+    tollCost: number
+    estimatedDriverCost: number
+    totalCost: number
+    overallRisk: number
+    weatherRisk: number
+    roadQualityRisk: number
+    trafficRisk: number
+    cargoRisk?: number
+    geometry: number[][]
+    waypoints: RouteWaypoint[]
+    weatherConditions: WeatherCondition[]
+    restStops: RestStop[]
+    tollRoads: TollRoad[]
+    riskAnalysis: RiskAnalysis
+}
+
+export interface WeatherCondition {
+    location: string
+    coordinates: [number, number]
+    temperature: number
+    condition: string
+    precipitation: number
+    visibility: number
+    windSpeed: number
+    humidity: number
+    pressure: number
+    timestamp: string
+}
+
+export interface RestStop {
+    id: string
+    location: string
+    coordinates: [number, number]
+    type: 'mandatory' | 'recommended'
+    timeFromStart: number // в минутах
+    reason: string
+    facilityType: 'gas_station' | 'truck_stop' | 'rest_area' | 'cafe' | 'hotel'
+    amenities: string[]
+    rating?: number
+    workingHours?: string
+}
+
+export interface TollRoad {
+    id: string
+    name: string
+    cost: number
+    distance: number
+    currency: string
+    paymentMethods: string[]
+    coordinates: {
+        start: [number, number]
+        end: [number, number]
+    }
+}
+
+export interface RiskAnalysis {
+    overall: RiskLevel
+    weather: {
+        level: RiskLevel
+        factors: string[]
+        recommendations: string[]
+    }
+    road: {
+        level: RiskLevel
+        factors: string[]
+        recommendations: string[]
+    }
+    traffic: {
+        level: RiskLevel
+        factors: string[]
+        recommendations: string[]
+    }
+    cargo?: {
+        level: RiskLevel
+        factors: string[]
+        recommendations: string[]
+    }
+}
+
+export interface RiskLevel {
+    score: number // 1-5
+    label: 'Низкий' | 'Средний' | 'Высокий'
+    color: string
+}
+
+export interface GeocodingResult {
+    address: string
+    coordinates: [number, number]
+    confidence: number
+    country: string
+    region: string
+    city: string
+}

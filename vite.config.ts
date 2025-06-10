@@ -28,9 +28,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    hmr: {
-      port: 3001
-    },
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
@@ -40,18 +38,32 @@ export default defineConfig({
     },
   },
   build: {
+    outDir: 'dist',
+    sourcemap: true,
     target: 'esnext',
     rollupOptions: {
       output: {
         manualChunks: {
-          canvas: ['@/components/ui/blackhole'],
           vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          ui: ['@radix-ui/react-slot', 'framer-motion'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
           maps: ['@pbe/react-yandex-maps'],
-          charts: ['recharts', '@visx/responsive'],
+          utils: ['axios', 'date-fns', 'clsx'],
         },
       },
     },
+  },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      '@pbe/react-yandex-maps',
+      'axios',
+      'date-fns',
+      'clsx',
+      'tailwind-merge'
+    ],
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
   },
 })

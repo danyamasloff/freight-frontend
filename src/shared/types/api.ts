@@ -34,7 +34,7 @@ export interface JwtResponse {
     token: string
     refreshToken: string
     username: string
-    expiresIn: number
+    expiresIn: number // в миллисекундах
 }
 
 export interface RefreshTokenRequest {
@@ -56,7 +56,7 @@ export interface GeoLocation {
     id?: number
     name: string
     description?: string
-    latitude: number  // Основные поля из Java DTO
+    latitude: number
     longitude: number
     type: string
     provider?: string
@@ -68,6 +68,77 @@ export interface GeoLocation {
     // Алиасы для обратной совместимости
     lat: number
     lng: number
+}
+
+// Статусы вождения (синхронизировано с Java enum)
+export enum DrivingStatus {
+    DRIVING = 'DRIVING',
+    REST_BREAK = 'REST_BREAK',
+    DAILY_REST = 'DAILY_REST',
+    WEEKLY_REST = 'WEEKLY_REST',
+    OTHER_WORK = 'OTHER_WORK',
+    AVAILABILITY = 'AVAILABILITY',
+    OFF_DUTY = 'OFF_DUTY'
+}
+
+// Типы водителей (синхронизировано с Java DTO)
+export interface DriverSummary {
+    id: number
+    firstName: string
+    lastName: string
+    middleName?: string
+    licenseNumber: string
+    phoneNumber?: string
+    drivingExperienceYears?: number
+    currentDrivingStatus: DrivingStatus
+    currentLocation?: GeoPoint
+}
+
+export interface DriverDetail {
+    id: number
+    firstName: string
+    lastName: string
+    middleName?: string
+    birthDate?: string
+    licenseNumber: string
+    licenseIssueDate?: string
+    licenseExpiryDate?: string
+    licenseCategories?: string
+    phoneNumber?: string
+    email?: string
+    drivingExperienceYears?: number
+    hasDangerousGoodsCertificate?: boolean
+    dangerousGoodsCertificateExpiry?: string
+    hasInternationalTransportationPermit?: boolean
+    hourlyRate?: number
+    perKilometerRate?: number
+    currentDrivingStatus: DrivingStatus
+    currentStatusStartTime?: string
+    dailyDrivingMinutesToday?: number
+    continuousDrivingMinutes?: number
+    weeklyDrivingMinutes?: number
+    currentLocation?: GeoPoint
+    createdAt: string
+    updatedAt: string
+}
+
+// DTO для квалификации водителя (из analytics пакета)
+export interface DriverQualificationDto {
+    licenseNumber?: string
+    issueDate?: string
+    expiryDate?: string
+    categories?: string
+    hasDangerousGoodsCertificate?: boolean
+    dangerousGoodsExpiryDate?: string
+    hasInternationalPermit?: boolean
+}
+
+// DTO для медицинских данных водителя
+export interface DriverMedicalDto {
+    certificateNumber?: string
+    issueDate?: string
+    expiryDate?: string
+    restrictions?: string
 }
 
 // Типы маршрутов (соответствуют Java DTO)
@@ -101,60 +172,84 @@ export interface RouteRequest {
     considerTraffic?: boolean
 }
 
+// Инструкция для навигации (синхронизировано с Java)
 export interface RouteInstruction {
     text: string
-    distance: number
-    time: number
-    interval: [number, number]
-    sign: number
+    distance: number // в километрах
+    time: number // в минутах
     streetName?: string
+    exitNumber?: number
+    turnAngle?: number // угол поворота в градусах
 }
 
-// Базовый тип ответа маршрута
-export interface RouteResponse {
+// Сегменты маршрута
+export interface RoadQualitySegment {
+    startIndex: number
+    endIndex: number
     distance: number
-    duration: number
+    quality: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR' | 'VERY_POOR'
+    surfaceType: 'ASPHALT' | 'CONCRETE' | 'GRAVEL' | 'UNPAVED'
+    description?: string
+    riskScore?: number
+}
+
+export interface WeatherAlertSegment {
+    startIndex: number
+    endIndex: number
+    distance: number
+    weatherType: 'RAIN' | 'SNOW' | 'ICE' | 'FOG' | 'STRONG_WIND'
+    severity: 'LOW' | 'MODERATE' | 'HIGH' | 'SEVERE'
+    description?: string
+    riskScore?: number
+}
+
+export interface TollSegment {
+    startIndex: number
+    endIndex: number
+    distance: number
+    tollName?: string
+    cost?: number
+    currency?: string
+}
+
+// Базовый тип ответа маршрута (синхронизировано с RouteResponseDto)
+export interface RouteResponse {
+    distance: number // в километрах
+    duration: number // в минутах
     coordinates: number[][]
     instructions: RouteInstruction[]
-    startAddress?: string
-    endAddress?: string
     departureTime?: string
+    
     // Аналитика рисков
-    riskScore?: number
-    weatherRisk?: number
-    roadQualityRisk?: number
-    trafficRisk?: number
-    riskFactors?: string[]
+    weatherRiskScore?: number
+    roadQualityRiskScore?: number
+    trafficRiskScore?: number
+    overallRiskScore?: number
+    
     // Экономические показатели
+    estimatedFuelConsumption?: number
     estimatedFuelCost?: number
     estimatedTollCost?: number
-    totalEstimatedCost?: number
-    fuelConsumption?: number
+    estimatedDriverCost?: number
+    estimatedTotalCost?: number
+    
+    // Сегменты
+    roadQualitySegments?: RoadQualitySegment[]
+    weatherAlertSegments?: WeatherAlertSegment[]
+    tollSegments?: TollSegment[]
+    
     // Соответствие РТО
     rtoCompliant?: boolean
     rtoWarnings?: string[]
-    // Геометрия для PostGIS (опционально)
-    geometry?: any
 }
 
-// Расширенный тип для GraphHopper API (соответствует Java RouteResponseDto)
+// Расширенный тип для GraphHopper API
 export interface RouteResponseExtended extends RouteResponse {
-    // Аналитика рисков
-    riskScore?: number
-    weatherRisk?: number
-    roadQualityRisk?: number
-    trafficRisk?: number
+    startAddress?: string
+    endAddress?: string
     riskFactors?: string[]
-
-    // Экономические показатели
-    estimatedFuelCost?: number
-    estimatedTollCost?: number
-    totalEstimatedCost?: number
     fuelConsumption?: number
-
-    // Соответствие РТО
-    rtoCompliant?: boolean
-    rtoWarnings?: string[]
+    geometry?: any
 }
 
 export interface RouteSummary {
@@ -162,28 +257,53 @@ export interface RouteSummary {
     name: string
     startAddress: string
     endAddress: string
-    distance: number
-    duration: number
+    // Поля из реального API бэкенда
+    distanceKm: number
+    estimatedDurationMinutes: number
     status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
     vehicleId?: number
     driverId?: number
     departureTime?: string
+    estimatedTotalCost?: number
+    // Алиасы для обратной совместимости
+    distance: number
+    duration: number
     estimatedCost?: number
 }
 
 export interface RouteDetail extends RouteSummary {
-    coordinates: [number, number][]
-    instructions: RouteInstruction[]
-    waypoints?: GeoPoint[]
+    coordinates?: [number, number][]
+    instructions?: RouteInstruction[]
+    waypoints?: any[]
     cargoId?: number
     cargo?: CargoDetail
-    vehicle?: VehicleDetail
-    driver?: DriverDetail
+    vehicle?: any
+    driver?: any
+    // Поля из реального API бэкенда
+    estimatedFuelConsumption?: number
+    actualFuelConsumption?: number
+    estimatedFuelCost?: number
+    estimatedTollCost?: number
+    estimatedDriverCost?: number
+    actualTotalCost?: number
+    currency?: string
+    overallRiskScore?: number
+    weatherRiskScore?: number
+    roadQualityRiskScore?: number
+    trafficRiskScore?: number
+    cargoRiskScore?: number
+    rtoWarnings?: string[]
+    // Алиасы для обратной совместимости
     riskScore?: number
     riskFactors?: string[]
     weatherForecast?: RouteWeatherForecast
-    createdAt: string
-    updatedAt: string
+    fuelConsumption?: number
+    totalEstimatedCost?: number
+    weatherRisk?: number
+    roadQualityRisk?: number
+    trafficRisk?: number
+    createdAt?: string
+    updatedAt?: string
 }
 
 export interface RouteCreateUpdate {
@@ -201,7 +321,7 @@ export interface RouteCreateUpdate {
     waypoints?: GeoPoint[]
 }
 
-// Параметры планирования маршрутов (соответствуют Java эндпоинтам)
+// Параметры планирования маршрутов
 export interface RoutePlanRequest {
     fromLat: number
     fromLon: number
@@ -223,7 +343,7 @@ export interface FindPlaceRequest {
     lon?: number
 }
 
-// POI категории (соответствуют Java эндпоинтам)
+// POI категории
 export type POICategory =
     | 'fuel'        // АЗС
     | 'food'        // Кафе и рестораны
@@ -232,42 +352,6 @@ export type POICategory =
     | 'atms'        // Банкоматы
     | 'pharmacies'  // Аптеки
     | 'hospitals'   // Больницы
-
-// Типы водителей
-export enum DrivingStatus {
-    DRIVING = 'DRIVING',
-    REST_BREAK = 'REST_BREAK',
-    DAILY_REST = 'DAILY_REST',
-    WEEKLY_REST = 'WEEKLY_REST',
-    OFF_DUTY = 'OFF_DUTY'
-}
-
-export interface DriverSummary {
-    id: number
-    name: string
-    licenseNumber: string
-    status: DrivingStatus
-    currentLocation?: GeoPoint
-}
-
-export interface DriverDetail {
-    id: number
-    name: string
-    firstName: string
-    lastName: string
-    licenseNumber: string
-    licenseCategory: string[]
-    phone: string
-    email?: string
-    experience: number
-    rating?: number
-    status: DrivingStatus
-    currentLocation?: GeoPoint
-    workTimeStart?: string
-    workTimeEnd?: string
-    createdAt: string
-    updatedAt: string
-}
 
 // Типы грузов
 export interface CargoSummary {
@@ -325,47 +409,105 @@ export interface VehicleDetail {
     updatedAt: string
 }
 
-// Типы погоды
+// Типы погоды (синхронизированы с backend DTO)
 export interface WeatherData {
-    temperature: number
-    humidity: number
-    pressure: number
-    windSpeed: number
-    windDirection: number
-    cloudiness: number
-    visibility: number
-    weatherMain: string
-    weatherDescription: string
-    icon: string
-    timestamp: string
+    // Базовая информация
+    cityName?: string
+    forecastTime?: string
+    
+    // Основные показатели
+    temperature: number           // Температура в градусах Цельсия
+    feelsLike?: number           // Ощущаемая температура
+    humidity: number             // Влажность в процентах
+    pressure: number             // Атмосферное давление в гектопаскалях
+    
+    // Ветер
+    windSpeed: number            // Скорость ветра в м/с
+    windDirection: number        // Направление ветра в градусах
+    windGust?: number           // Порывы ветра в м/с
+    
+    // Осадки
+    rainVolume1h?: number       // Количество осадков за 1 час в мм
+    rainVolume3h?: number       // Количество осадков за 3 часа в мм
+    snowVolume1h?: number       // Количество снега за 1 час в мм
+    snowVolume3h?: number       // Количество снега за 3 часа в мм
+    
+    // Облачность и видимость
+    cloudiness: number          // Облачность в процентах
+    visibility?: number         // Видимость в метрах
+    
+    // Восход и закат
+    sunrise?: string
+    sunset?: string
+    
+    // Описание погоды
+    weatherId: number           // Идентификатор погодного условия
+    weatherMain: string         // Основная категория погоды (Rain, Snow, ...)
+    weatherDescription: string  // Описание погоды
+    weatherIcon: string         // Идентификатор иконки погоды
+    icon: string               // Алиас для weatherIcon
+    timestamp: string          // Временная метка
+    
+    // Расчетные показатели для оценки риска
+    riskScore?: number         // Оценка риска от 0 до 100
+    riskLevel?: string         // Уровень риска: LOW, MODERATE, HIGH, SEVERE
+    riskDescription?: string   // Описание риска
 }
 
 export interface WeatherForecast {
     location: GeoPoint
     current: WeatherData
-    hourly: WeatherData[]
-    daily: WeatherData[]
+    hourly?: WeatherData[]
+    daily?: WeatherData[]
+    forecasts: WeatherData[]   // Список прогнозов (совместимость с backend)
 }
 
+export type WeatherHazardType = 'STRONG_WIND' | 'ICE_RISK' | 'LOW_VISIBILITY' | 'HEAVY_RAIN' | 'HEAVY_SNOW' | 'FOG' | 'STORM'
+export type HazardSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME'
+
 export interface WeatherHazardWarning {
-    type: 'FOG' | 'RAIN' | 'SNOW' | 'ICE' | 'WIND' | 'STORM'
-    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME'
-    location: GeoPoint
+    hazardType: WeatherHazardType    // Тип погодной опасности  
+    severity: HazardSeverity         // Серьезность опасности
+    distanceFromStart: number        // Расстояние от начала маршрута
+    expectedTime: string             // Ожидаемое время столкновения с опасностью
+    description: string              // Описание опасного явления
+    recommendation: string           // Рекомендация для водителя
+    
+    // Алиасы для обратной совместимости
+    type: WeatherHazardType
+    severityLevel?: HazardSeverity
     timeStart: string
     timeEnd: string
-    description: string
+    location: GeoPoint
     recommendations: string[]
 }
 
+export interface RoutePointWeather {
+    pointIndex: number           // Индекс точки в маршруте
+    distanceFromStart: number    // Расстояние от начала маршрута в км
+    estimatedTime: string        // Оценочное время прибытия в точку
+    weatherData: WeatherData     // Погодные данные для этой точки
+    
+    // Алиасы для обратной совместимости
+    coordinate: [number, number]
+    time: string
+    weather: WeatherData
+}
+
 export interface RouteWeatherForecast {
-    route: RouteResponse
-    departureTime: string
+    route: RouteResponse                    // Базовая информация о маршруте
+    departureTime: string                   // Время отправления
+    pointForecasts: RoutePointWeather[]     // Прогнозы для точек маршрута
+    hazardWarnings: WeatherHazardWarning[]  // Предупреждения об опасностях
+    hasHazardousConditions: boolean         // Флаг наличия опасных условий
+    summary?: string                        // Краткая сводка о погоде на маршруте
+    
+    // Алиасы для обратной совместимости
     weatherPoints: Array<{
         coordinate: [number, number]
         time: string
         weather: WeatherData
     }>
-    hazardWarnings: WeatherHazardWarning[]
     overallRisk: 'LOW' | 'MEDIUM' | 'HIGH'
     recommendations: string[]
 }
@@ -387,3 +529,76 @@ export interface DriverRestAnalysis {
     totalRestTime: number
     nextMandatoryRest: string
 }
+
+// Типы для аналитики и производительности
+export interface DriverPerformanceDto {
+    driverId: number
+    driverName: string
+    totalRoutes: number
+    totalDistance: number
+    averageFuelEfficiency: number
+    averageDeliveryTime: number
+    safetyRating: number
+    onTimeDeliveryRate: number
+    period: string
+}
+
+// Типы для назначений
+export interface AssignmentSummary {
+    id: number
+    routeId: number
+    driverId: number
+    vehicleId: number
+    cargoId?: number
+    status: 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+    assignedAt: string
+    startedAt?: string
+    completedAt?: string
+}
+
+export interface AssignmentDetail extends AssignmentSummary {
+    route: RouteDetail
+    driver: DriverDetail
+    vehicle: VehicleDetail
+    cargo?: CargoDetail
+    notes?: string
+    createdAt: string
+    updatedAt: string
+}
+
+// Типы для топлива
+export interface FuelStationDto {
+    id: number
+    name: string
+    brand?: string
+    latitude: number
+    longitude: number
+    address: string
+    fuelTypes: string[]
+    amenities: string[]
+    rating?: number
+    pricePerLiter?: number
+    lastUpdated?: string
+}
+
+// Типы для соответствия требованиям (compliance)
+export interface ComplianceCheckResult {
+    compliant: boolean
+    violations: ComplianceViolation[]
+    warnings: ComplianceWarning[]
+    recommendations: string[]
+}
+
+export interface ComplianceViolation {
+    type: string
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+    description: string
+    regulation: string
+    penalty?: string
+}
+
+export interface ComplianceWarning {
+    type: string
+    description: string
+    recommendation: string
+} 

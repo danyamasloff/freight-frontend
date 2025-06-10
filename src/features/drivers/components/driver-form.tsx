@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCreateDriverMutation, useUpdateDriverMutation } from '@/shared/api/driversSlice'
 import { useToast } from '@/hooks/use-toast'
+import { useNotifications } from '@/contexts/NotificationContext'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -39,6 +40,7 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
     const [activeTab, setActiveTab] = useState("personal")
     const { toast } = useToast()
     const navigate = useNavigate()
+    const { addNotification } = useNotifications()
 
     const [createDriver, { isLoading: isCreating }] = useCreateDriverMutation()
     const [updateDriver, { isLoading: isUpdating }] = useUpdateDriverMutation()
@@ -70,27 +72,38 @@ export function DriverForm({ initialData, id }: DriverFormProps) {
     async function onSubmit(values: DriverFormValues) {
         try {
             const driverData = {
-                ...values,
-                name: `${values.firstName} ${values.lastName}`,
-                // Convert empty strings to undefined for optional fields
+                firstName: values.firstName,
+                lastName: values.lastName,
+                licenseNumber: values.licenseNumber,
+                phoneNumber: values.phone,
                 email: values.email || undefined,
+                drivingExperienceYears: values.experience,
                 licenseIssueDate: values.licenseIssueDate || undefined,
                 licenseExpiryDate: values.licenseExpiryDate || undefined,
-                medicalCertificateExpiryDate: values.medicalCertificateExpiryDate || undefined,
-                dangerousGoodsPermitExpiryDate: values.dangerousGoodsPermitExpiryDate || undefined,
+                licenseCategories: values.licenseCategory.join(','),
+                hasDangerousGoodsCertificate: values.dangerousGoodsPermit,
+                dangerousGoodsCertificateExpiry: values.dangerousGoodsPermitExpiryDate || undefined,
                 hourlyRate: values.hourlyRate || undefined,
-                kmRate: values.kmRate || undefined,
-                notes: values.notes || undefined,
+                perKilometerRate: values.kmRate || undefined,
             }
 
             if (isEditMode && id) {
-                await updateDriver({ id, data: driverData }).unwrap()
+                await updateDriver({ id, ...driverData }).unwrap()
                 toast({
                     title: "Водитель обновлен",
                     description: `Данные водителя "${values.firstName} ${values.lastName}" успешно обновлены`
                 })
             } else {
                 const result = await createDriver(driverData).unwrap()
+                
+                // Добавляем уведомление о создании водителя
+                addNotification({
+                    type: 'driver_assigned',
+                    title: 'Новый водитель добавлен',
+                    message: `Водитель ${values.firstName} ${values.lastName} успешно зарегистрирован в системе`,
+                    priority: 'medium'
+                })
+                
                 toast({
                     title: "Водитель создан",
                     description: `Водитель "${values.firstName} ${values.lastName}" успешно добавлен в систему`

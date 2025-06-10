@@ -1,983 +1,616 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
-import { YMaps, Map, RouteButton, TrafficControl, RouteEditor, Placemark, Polyline } from '@pbe/react-yandex-maps'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
-    Navigation2,
-    Play,
-    Pause,
-    Square,
-    Volume2,
-    VolumeX,
-    Route,
-    Clock,
-    Download,
-    Star,
-    StarOff,
-    History,
-    Trash2,
-    MapPin,
-    Settings,
-    Car,
-    Truck,
-    User,
-    Bus,
-    Plus,
-    X,
-    Search,
-    Navigation,
-    Layers,
-    Eye,
-    EyeOff
-} from 'lucide-react'
-import { formatDistance, formatDuration } from '@/shared/utils/format'
-import { useToast } from '@/hooks/use-toast'
-import { useGetRoutesQuery } from '@/shared/api/routesSlice'
-import type { RouteSummary } from '@/shared/types/api'
+	YMaps,
+	Map,
+	RouteButton,
+	TrafficControl,
+	RouteEditor,
+	Placemark,
+	Polyline,
+} from "@pbe/react-yandex-maps";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+	MapPin,
+	Navigation,
+	Settings,
+	Layers,
+	CloudRain,
+	AlertTriangle,
+	Thermometer,
+	Wind,
+	Eye,
+	Droplets,
+	RefreshCw,
+	Loader2,
+} from "lucide-react";
+import { useWeatherAnalytics } from "@/features/weather/hooks/use-weather-analytics";
+import { formatDistance, formatDuration } from "@/shared/utils/format";
 
-interface RouteMapProps {
-    className?: string
-    routes?: RouteSummary[]
-    onRouteSelect?: (routes: RouteSummary[]) => void
-}
-
-interface RouteInfo {
-    id: string
-    name: string
-    distance: number
-    duration: number
-    timestamp: number
-    coordinates?: [number, number][]
-    alternativeRoutes?: any[]
-}
-
-interface NavigationState {
-    isActive: boolean
-    isPlaying: boolean
-    progress: number
-    voiceEnabled: boolean
-    currentInstruction: string
+interface RoutePoint {
+	coordinates: [number, number];
+	address?: string;
+	type: "start" | "end" | "waypoint";
+	weatherData?: any;
 }
 
 interface MapSettings {
-    showTraffic: boolean
-    mapType: 'map' | 'satellite' | 'hybrid'
-    showPOI: boolean
-    routingMode: string
-    avoidTolls: boolean
-    avoidTraffic: boolean
-    avoidFerries: boolean
-    showExistingRoutes: boolean
+	showTraffic: boolean;
+	showWeather: boolean;
+	mapType: "map" | "satellite" | "hybrid";
+	showWeatherOverlay: boolean;
 }
 
-interface Waypoint {
-    id: string
-    name: string
-    coords: [number, number]
+interface RouteMapProps {
+	routes?: RoutePoint[][];
+	onRouteChange?: (route: RoutePoint[]) => void;
+	showWeatherAnalytics?: boolean;
+	className?: string;
 }
 
-interface Place {
-    name: string
-    coords: [number, number]
-    description?: string
-}
+const YANDEX_API_KEY = import.meta.env.VITE_YANDEX_MAPS_API_KEY;
 
-const YANDEX_API_KEY = import.meta.env.VITE_YANDEX_MAPS_API_KEY
-const MOSCOW_CENTER: [number, number] = [55.751574, 37.573856]
+export function RouteMap({
+	routes = [],
+	onRouteChange,
+	showWeatherAnalytics = true,
+	className,
+}: RouteMapProps) {
+	const [mapState, setMapState] = useState({
+		center: [55.751574, 37.573856] as [number, number],
+		zoom: 9,
+	});
 
-export function RouteMap({ className, routes = [], onRouteSelect }: RouteMapProps) {
-    const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null)
-    const [navigationState, setNavigationState] = useState<NavigationState>({
-        isActive: false,
-        isPlaying: false,
-        progress: 0,
-        voiceEnabled: true,
-        currentInstruction: ''
-    })
-    const [routeHistory, setRouteHistory] = useState<RouteInfo[]>([])
-    const [favoriteRoutes, setFavoriteRoutes] = useState<RouteInfo[]>([])
-    const [activeTab, setActiveTab] = useState('route')
-    const [mapSettings, setMapSettings] = useState<MapSettings>({
-        showTraffic: false,
-        mapType: 'map',
-        showPOI: true,
-        routingMode: 'truck',
-        avoidTolls: false,
-        avoidTraffic: true,
-        avoidFerries: false,
-        showExistingRoutes: true
-    })
-    const [waypoints, setWaypoints] = useState<Waypoint[]>([])
-    const [searchQuery, setSearchQuery] = useState('')
-    const [searchResults, setSearchResults] = useState<Place[]>([])
-    const [showSettings, setShowSettings] = useState(false)
-    const [isSearching, setIsSearching] = useState(false)
-    const [visibleRoutes, setVisibleRoutes] = useState<Set<number>>(new Set())
+	const [settings, setSettings] = useState<MapSettings>({
+		showTraffic: true,
+		showWeather: true,
+		mapType: "map",
+		showWeatherOverlay: false,
+	});
 
-    const navigationIntervalRef = useRef<NodeJS.Timeout | null>(null)
-    const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
-    const ymapsRef = useRef<any>(null)
-    const mapRef = useRef<any>(null)
-    const { toast } = useToast()
+	const [selectedRoute, setSelectedRoute] = useState<RoutePoint[] | null>(null);
+	const [isEditingRoute, setIsEditingRoute] = useState(false);
+	const mapRef = useRef<any>(null);
+	const routeEditorRef = useRef<any>(null);
 
-    // Load existing routes from API
-    const { data: existingRoutes } = useGetRoutesQuery()
+	// Получаем погодную аналитику для выбранного маршрута
+	const {
+		weatherData,
+		riskAssessment,
+		isLoading: isLoadingWeather,
+		error: weatherError,
+		refetch: refetchWeather,
+	} = useWeatherAnalytics({
+		startPoint: selectedRoute?.[0]?.coordinates,
+		endPoint: selectedRoute?.[selectedRoute.length - 1]?.coordinates,
+		waypoints: selectedRoute?.slice(1, -1).map((p) => p.coordinates),
+		enabled: showWeatherAnalytics && !!selectedRoute && selectedRoute.length >= 2,
+	});
 
-    // Initialize Speech Synthesis
-    useEffect(() => {
-        if ('speechSynthesis' in window) {
-            speechSynthesisRef.current = window.speechSynthesis
-        }
-    }, [])
+	// Обработчик изменения настроек карты
+	const handleSettingChange = useCallback((key: keyof MapSettings, value: boolean | string) => {
+		setSettings((prev) => ({ ...prev, [key]: value }));
+	}, []);
 
-    // Initialize visible routes
-    useEffect(() => {
-        if (existingRoutes && mapSettings.showExistingRoutes) {
-            setVisibleRoutes(new Set(existingRoutes.map(r => r.id)))
-        } else {
-            setVisibleRoutes(new Set())
-        }
-    }, [existingRoutes, mapSettings.showExistingRoutes])
+	// Обработчик изменения типа карты
+	useEffect(() => {
+		if (mapRef.current) {
+			mapRef.current.setType(`yandex#${settings.mapType}`);
+		}
+	}, [settings.mapType]);
 
-    // Search places
-    const searchPlaces = useCallback(async (query: string) => {
-        if (!ymapsRef.current || query.length < 3) {
-            setSearchResults([])
-            return
-        }
+	// Обработчик готовности карты
+	const handleMapReady = useCallback((map: any) => {
+		mapRef.current = map;
+	}, []);
 
-        setIsSearching(true)
-        try {
-            const result = await ymapsRef.current.geocode(query, { results: 10 })
-            const places: Place[] = []
+	// Обработчик клика по карте для добавления точек маршрута
+	const handleMapClick = useCallback(
+		(event: any) => {
+			if (!isEditingRoute) return;
 
-            for (let i = 0; i < result.geoObjects.getLength(); i++) {
-                const geoObject = result.geoObjects.get(i)
-                places.push({
-                    name: geoObject.getAddressLine(),
-                    coords: geoObject.geometry.getCoordinates(),
-                    description: geoObject.getLocalities().join(', ')
-                })
-            }
+			const coords = event.get("coords") as [number, number];
+			const newPoint: RoutePoint = {
+				coordinates: coords,
+				type: selectedRoute?.length === 0 ? "start" : "waypoint",
+			};
 
-            setSearchResults(places)
-        } catch (error) {
-            console.error('Search error:', error)
-            setSearchResults([])
-        } finally {
-            setIsSearching(false)
-        }
-    }, [])
+			if (selectedRoute) {
+				const updatedRoute = [...selectedRoute, newPoint];
+				setSelectedRoute(updatedRoute);
+				onRouteChange?.(updatedRoute);
+			} else {
+				setSelectedRoute([newPoint]);
+				onRouteChange?.([newPoint]);
+			}
+		},
+		[isEditingRoute, selectedRoute, onRouteChange]
+	);
 
-    // Debounced search
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (searchQuery) {
-                searchPlaces(searchQuery)
-            }
-        }, 300)
+	// Обработчик завершения маршрута
+	const handleFinishRoute = useCallback(() => {
+		if (selectedRoute && selectedRoute.length >= 2) {
+			const updatedRoute = selectedRoute.map((point, index) => ({
+				...point,
+				type:
+					index === 0
+						? ("start" as const)
+						: index === selectedRoute.length - 1
+							? ("end" as const)
+							: ("waypoint" as const),
+			}));
+			setSelectedRoute(updatedRoute);
+			onRouteChange?.(updatedRoute);
+		}
+		setIsEditingRoute(false);
+	}, [selectedRoute, onRouteChange]);
 
-        return () => clearTimeout(timeoutId)
-    }, [searchQuery, searchPlaces])
+	// Обработчик очистки маршрута
+	const handleClearRoute = useCallback(() => {
+		setSelectedRoute(null);
+		onRouteChange?.([]);
+	}, [onRouteChange]);
 
-    // Add waypoint
-    const addWaypoint = (place: Place) => {
-        const waypoint: Waypoint = {
-            id: `waypoint_${Date.now()}`,
-            name: place.name,
-            coords: place.coords
-        }
-        setWaypoints(prev => [...prev, waypoint])
-        setSearchQuery('')
-        setSearchResults([])
-        toast({ title: 'Промежуточная точка добавлена', description: place.name })
-    }
+	// Получение цвета маркера в зависимости от типа точки
+	const getMarkerPreset = (type: RoutePoint["type"]) => {
+		switch (type) {
+			case "start":
+				return "islands#greenDotIcon";
+			case "end":
+				return "islands#redDotIcon";
+			default:
+				return "islands#blueDotIcon";
+		}
+	};
 
-    // Remove waypoint
-    const removeWaypoint = (id: string) => {
-        setWaypoints(prev => prev.filter(w => w.id !== id))
-        toast({ title: 'Промежуточная точка удалена' })
-    }
+	// Получение цвета риска
+	const getRiskColor = (risk: number) => {
+		if (risk < 25) return "text-green-600";
+		if (risk < 50) return "text-yellow-600";
+		if (risk < 75) return "text-orange-600";
+		return "text-red-600";
+	};
 
-    // Handle route built
-    const handleRouteBuilt = useCallback((route: any) => {
-        try {
-            const activeRoute = route.getActiveRoute()
-            if (activeRoute) {
-                const distance = activeRoute.properties.get('distance') || 0
-                const duration = activeRoute.properties.get('duration') || 0
-                const coordinates = activeRoute.geometry.getCoordinates()
+	// Получение варианта бейджа риска
+	const getRiskVariant = (risk: number): "default" | "secondary" | "destructive" => {
+		if (risk < 25) return "default";
+		if (risk < 75) return "secondary";
+		return "destructive";
+	};
 
-                const routeData: RouteInfo = {
-                    id: `route_${Date.now()}`,
-                    name: `Маршрут ${new Date().toLocaleTimeString()}`,
-                    distance,
-                    duration,
-                    timestamp: Date.now(),
-                    coordinates,
-                    alternativeRoutes: route.getRoutes().slice(1, 4)
-                }
+	if (!YANDEX_API_KEY) {
+		return (
+			<Alert>
+				<AlertTriangle className="h-4 w-4" />
+				<AlertDescription>
+					Не найден API ключ Yandex Maps. Проверьте переменную окружения
+					VITE_YANDEX_MAPS_API_KEY.
+				</AlertDescription>
+			</Alert>
+		);
+	}
 
-                setRouteInfo(routeData)
-                setRouteHistory(prev => [routeData, ...prev.slice(0, 19)])
+	return (
+		<div className={`space-y-4 ${className}`}>
+			{/* Панель управления */}
+			<Card>
+				<CardHeader>
+					<CardTitle className="flex items-center justify-between">
+						<div className="flex items-center gap-2">
+							<Navigation className="h-5 w-5" />
+							Интерактивная карта маршрутов
+						</div>
+						<div className="flex items-center gap-2">
+							<Button
+								variant={isEditingRoute ? "destructive" : "outline"}
+								size="sm"
+								onClick={() => setIsEditingRoute(!isEditingRoute)}
+							>
+								{isEditingRoute ? "Отменить" : "Редактировать"}
+							</Button>
+							{selectedRoute && selectedRoute.length > 0 && (
+								<>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={handleFinishRoute}
+										disabled={!isEditingRoute || selectedRoute.length < 2}
+									>
+										Завершить
+									</Button>
+									<Button variant="outline" size="sm" onClick={handleClearRoute}>
+										Очистить
+									</Button>
+								</>
+							)}
+						</div>
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<Tabs defaultValue="map" className="w-full">
+						<TabsList className="grid w-full grid-cols-3">
+							<TabsTrigger value="map">Карта</TabsTrigger>
+							<TabsTrigger value="settings">Настройки</TabsTrigger>
+							<TabsTrigger value="weather" disabled={!showWeatherAnalytics}>
+								Погода
+							</TabsTrigger>
+						</TabsList>
 
-                toast({
-                    title: 'Маршрут построен!',
-                    description: `${formatDistance(distance)} • ${formatDuration(duration)}`
-                })
-            }
-        } catch (error) {
-            toast({ title: 'Ошибка обработки маршрута', variant: 'destructive' })
-        }
-    }, [toast])
+						<TabsContent value="map" className="space-y-4">
+							<div className="h-96 rounded-lg overflow-hidden border">
+								<YMaps
+									query={{
+										apikey: YANDEX_API_KEY,
+										lang: "ru_RU",
+										load: "package.full",
+									}}
+								>
+									<Map
+										state={mapState}
+										onLoad={handleMapReady}
+										onClick={handleMapClick}
+										width="100%"
+										height="100%"
+										options={{
+											suppressMapOpenBlock: true,
+											yandexMapDisablePoiInteractivity: true,
+										}}
+									>
+										{settings.showTraffic && (
+											<TrafficControl options={{ float: "right" }} />
+										)}
 
-    // Speech function
-    const speak = (text: string) => {
-        if (navigationState.voiceEnabled && speechSynthesisRef.current) {
-            speechSynthesisRef.current.cancel()
-            const utterance = new SpeechSynthesisUtterance(text)
-            utterance.lang = 'ru-RU'
-            speechSynthesisRef.current.speak(utterance)
-        }
-    }
+										{/* Отображение всех маршрутов */}
+										{routes.map((route, routeIndex) => (
+											<React.Fragment key={routeIndex}>
+												{/* Маркеры точек */}
+												{route.map((point, pointIndex) => (
+													<Placemark
+														key={`${routeIndex}-${pointIndex}`}
+														geometry={point.coordinates}
+														properties={{
+															balloonContent: `${point.type}: ${point.address || "Координаты"}`,
+														}}
+														options={{
+															preset: getMarkerPreset(point.type),
+														}}
+													/>
+												))}
 
-    // Navigation functions
-    const startNavigation = () => {
-        if (!routeInfo) return
+												{/* Линия маршрута */}
+												{route.length > 1 && (
+													<Polyline
+														geometry={route.map((p) => p.coordinates)}
+														options={{
+															strokeColor:
+																routeIndex === 0
+																	? "#0066cc"
+																	: "#cc6600",
+															strokeWidth: 4,
+															strokeOpacity: 0.8,
+														}}
+													/>
+												)}
+											</React.Fragment>
+										))}
 
-        setNavigationState({
-            isActive: true,
-            isPlaying: true,
-            progress: 0,
-            voiceEnabled: navigationState.voiceEnabled,
-            currentInstruction: 'Начните движение по маршруту'
-        })
+										{/* Текущий редактируемый маршрут */}
+										{selectedRoute && (
+											<React.Fragment>
+												{selectedRoute.map((point, index) => (
+													<Placemark
+														key={`selected-${index}`}
+														geometry={point.coordinates}
+														properties={{
+															balloonContent: `${point.type}: ${point.address || "Координаты"}`,
+														}}
+														options={{
+															preset: getMarkerPreset(point.type),
+														}}
+													/>
+												))}
 
-        speak('Навигация начата')
+												{selectedRoute.length > 1 && (
+													<Polyline
+														geometry={selectedRoute.map(
+															(p) => p.coordinates
+														)}
+														options={{
+															strokeColor: "#ff0000",
+															strokeWidth: 4,
+															strokeOpacity: 0.8,
+															strokeStyle: "dash",
+														}}
+													/>
+												)}
+											</React.Fragment>
+										)}
+									</Map>
+								</YMaps>
+							</div>
 
-        navigationIntervalRef.current = setInterval(() => {
-            setNavigationState(prev => {
-                const newProgress = Math.min(prev.progress + 2, 100)
+							{isEditingRoute && (
+								<Alert>
+									<MapPin className="h-4 w-4" />
+									<AlertDescription>
+										Кликните по карте для добавления точек маршрута.
+										{selectedRoute &&
+											selectedRoute.length > 0 &&
+											` Добавлено точек: ${selectedRoute.length}`}
+									</AlertDescription>
+								</Alert>
+							)}
+						</TabsContent>
 
-                if (newProgress >= 100) {
-                    speak('Вы прибыли в пункт назначения')
-                    return { ...prev, progress: 100, isPlaying: false }
-                }
+						<TabsContent value="settings" className="space-y-4">
+							<div className="grid grid-cols-2 gap-4">
+								<div className="space-y-4">
+									<div className="flex items-center justify-between">
+										<Label htmlFor="traffic">Показать пробки</Label>
+										<Switch
+											id="traffic"
+											checked={settings.showTraffic}
+											onCheckedChange={(checked) =>
+												handleSettingChange("showTraffic", checked)
+											}
+										/>
+									</div>
 
-                return {
-                    ...prev,
-                    progress: newProgress,
-                    currentInstruction: `Продолжайте движение (${newProgress.toFixed(0)}%)`
-                }
-            })
-        }, 1000)
-    }
+									<div className="flex items-center justify-between">
+										<Label htmlFor="weather">Показать погоду</Label>
+										<Switch
+											id="weather"
+											checked={settings.showWeather}
+											onCheckedChange={(checked) =>
+												handleSettingChange("showWeather", checked)
+											}
+										/>
+									</div>
 
-    const pauseNavigation = () => {
-        setNavigationState(prev => ({ ...prev, isPlaying: false }))
-        if (navigationIntervalRef.current) {
-            clearInterval(navigationIntervalRef.current)
-        }
-        speak('Навигация приостановлена')
-    }
+									<div className="flex items-center justify-between">
+										<Label htmlFor="weather-overlay">Погодный слой</Label>
+										<Switch
+											id="weather-overlay"
+											checked={settings.showWeatherOverlay}
+											onCheckedChange={(checked) =>
+												handleSettingChange("showWeatherOverlay", checked)
+											}
+										/>
+									</div>
+								</div>
 
-    const resumeNavigation = () => {
-        setNavigationState(prev => ({ ...prev, isPlaying: true }))
-        startNavigation()
-    }
+								<div className="space-y-4">
+									<div>
+										<Label>Тип карты</Label>
+										<div className="flex gap-2 mt-2">
+											{[
+												{ value: "map", label: "Схема" },
+												{ value: "satellite", label: "Спутник" },
+												{ value: "hybrid", label: "Гибрид" },
+											].map(({ value, label }) => (
+												<Button
+													key={value}
+													variant={
+														settings.mapType === value
+															? "default"
+															: "outline"
+													}
+													size="sm"
+													onClick={() =>
+														handleSettingChange("mapType", value)
+													}
+												>
+													{label}
+												</Button>
+											))}
+										</div>
+									</div>
+								</div>
+							</div>
+						</TabsContent>
 
-    const stopNavigation = () => {
-        setNavigationState({
-            isActive: false,
-            isPlaying: false,
-            progress: 0,
-            voiceEnabled: navigationState.voiceEnabled,
-            currentInstruction: ''
-        })
-        if (navigationIntervalRef.current) {
-            clearInterval(navigationIntervalRef.current)
-        }
-        speak('Навигация остановлена')
-    }
+						<TabsContent value="weather" className="space-y-4">
+							{showWeatherAnalytics && selectedRoute && selectedRoute.length >= 2 ? (
+								<div className="space-y-4">
+									{isLoadingWeather ? (
+										<div className="flex items-center justify-center py-8">
+											<Loader2 className="h-6 w-6 animate-spin mr-2" />
+											<span>Загрузка погодных данных...</span>
+										</div>
+									) : weatherError ? (
+										<Alert>
+											<AlertTriangle className="h-4 w-4" />
+											<AlertDescription>
+												Ошибка загрузки погодных данных:{" "}
+												{weatherError.message}
+												<Button
+													variant="outline"
+													size="sm"
+													className="ml-2"
+													onClick={() => refetchWeather()}
+												>
+													<RefreshCw className="h-3 w-3 mr-1" />
+													Повторить
+												</Button>
+											</AlertDescription>
+										</Alert>
+									) : weatherData ? (
+										<div className="space-y-4">
+											{/* Текущие погодные условия */}
+											<Card>
+												<CardHeader>
+													<CardTitle className="flex items-center gap-2">
+														<CloudRain className="h-4 w-4" />
+														Текущие условия
+													</CardTitle>
+												</CardHeader>
+												<CardContent>
+													<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+														<div className="flex items-center gap-2">
+															<Thermometer className="h-4 w-4 text-muted-foreground" />
+															<div>
+																<p className="text-sm text-muted-foreground">
+																	Температура
+																</p>
+																<p className="font-medium">
+																	{
+																		weatherData.current
+																			?.temperature
+																	}
+																	°C
+																</p>
+															</div>
+														</div>
 
-    // Toggle favorite
-    const toggleFavorite = (route: RouteInfo) => {
-        const isFavorite = favoriteRoutes.some(r => r.id === route.id)
-        const updatedFavorites = isFavorite
-            ? favoriteRoutes.filter(r => r.id !== route.id)
-            : [...favoriteRoutes, route]
+														<div className="flex items-center gap-2">
+															<Droplets className="h-4 w-4 text-muted-foreground" />
+															<div>
+																<p className="text-sm text-muted-foreground">
+																	Влажность
+																</p>
+																<p className="font-medium">
+																	{weatherData.current?.humidity}%
+																</p>
+															</div>
+														</div>
 
-        setFavoriteRoutes(updatedFavorites)
-        toast({
-            title: isFavorite ? 'Удалено из избранного' : 'Добавлено в избранное'
-        })
-    }
+														<div className="flex items-center gap-2">
+															<Wind className="h-4 w-4 text-muted-foreground" />
+															<div>
+																<p className="text-sm text-muted-foreground">
+																	Ветер
+																</p>
+																<p className="font-medium">
+																	{weatherData.current?.windSpeed}{" "}
+																	м/с
+																</p>
+															</div>
+														</div>
 
-    // Export route
-    const exportRoute = (format: 'json' | 'gpx') => {
-        if (!routeInfo) return
+														<div className="flex items-center gap-2">
+															<Eye className="h-4 w-4 text-muted-foreground" />
+															<div>
+																<p className="text-sm text-muted-foreground">
+																	Видимость
+																</p>
+																<p className="font-medium">
+																	{
+																		weatherData.current
+																			?.visibility
+																	}{" "}
+																	км
+																</p>
+															</div>
+														</div>
+													</div>
+												</CardContent>
+											</Card>
 
-        const data = format === 'json'
-            ? JSON.stringify(routeInfo, null, 2)
-            : `<?xml version="1.0"?><gpx version="1.1"><trk><name>${routeInfo.name}</name></trk></gpx>`
+											{/* Оценка рисков */}
+											{riskAssessment && (
+												<Card>
+													<CardHeader>
+														<CardTitle className="flex items-center gap-2">
+															<AlertTriangle className="h-4 w-4" />
+															Оценка рисков
+														</CardTitle>
+													</CardHeader>
+													<CardContent className="space-y-4">
+														<div className="flex items-center justify-between">
+															<span className="font-medium">
+																Общий риск маршрута
+															</span>
+															<Badge
+																variant={getRiskVariant(
+																	riskAssessment.overallRisk
+																)}
+															>
+																{riskAssessment.overallRisk.toFixed(
+																	0
+																)}
+																%
+															</Badge>
+														</div>
 
-        const blob = new Blob([data], {
-            type: format === 'json' ? 'application/json' : 'application/gpx+xml'
-        })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `route_${routeInfo.id}.${format}`
-        link.click()
-        URL.revokeObjectURL(url)
+														<div className="space-y-2">
+															{riskAssessment.factors.map(
+																(factor, index) => (
+																	<div
+																		key={index}
+																		className="flex items-center justify-between text-sm"
+																	>
+																		<span className="text-muted-foreground">
+																			{factor.name}
+																		</span>
+																		<span
+																			className={getRiskColor(
+																				factor.impact
+																			)}
+																		>
+																			{factor.impact.toFixed(
+																				0
+																			)}
+																			%
+																		</span>
+																	</div>
+																)
+															)}
+														</div>
 
-        toast({ title: `Маршрут экспортирован в ${format.toUpperCase()}` })
-    }
-
-    // Update map settings
-    const updateMapSettings = (newSettings: Partial<MapSettings>) => {
-        setMapSettings(prev => ({ ...prev, ...newSettings }))
-
-        if (mapRef.current && ymapsRef.current) {
-            try {
-                if ('mapType' in newSettings && mapRef.current.setType) {
-                    mapRef.current.setType(`yandex#${newSettings.mapType}`)
-                }
-            } catch (error) {
-                console.error('Map settings update error:', error)
-            }
-        }
-    }
-
-    // Toggle route visibility
-    const toggleRouteVisibility = (routeId: number) => {
-        setVisibleRoutes(prev => {
-            const newSet = new Set(prev)
-            if (newSet.has(routeId)) {
-                newSet.delete(routeId)
-            } else {
-                newSet.add(routeId)
-            }
-            return newSet
-        })
-    }
-
-    // Get route color
-    const getRouteColor = (status: string) => {
-        switch (status) {
-            case 'IN_PROGRESS': return '#22c55e'
-            case 'PLANNED': return '#3b82f6'
-            case 'COMPLETED': return '#6b7280'
-            case 'CANCELLED': return '#ef4444'
-            default: return '#3b82f6'
-        }
-    }
-
-    useEffect(() => {
-        return () => {
-            if (navigationIntervalRef.current) {
-                clearInterval(navigationIntervalRef.current)
-            }
-            if (speechSynthesisRef.current) {
-                speechSynthesisRef.current.cancel()
-            }
-        }
-    }, [])
-
-    return (
-        <div className={`h-full flex gap-6 ${className}`}>
-            {/* Sidebar */}
-            <Card className="w-[420px] flex-shrink-0 overflow-hidden shadow-lg">
-                <CardHeader className="pb-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-blue-600 text-white">
-                                <Navigation2 className="h-5 w-5" />
-                            </div>
-                            <span className="text-xl font-bold">Планировщик маршрутов</span>
-                        </CardTitle>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setShowSettings(!showSettings)}
-                            className="h-10 w-10"
-                        >
-                            <Settings className="h-5 w-5" />
-                        </Button>
-                    </div>
-                </CardHeader>
-
-                <CardContent className="p-0">
-                    <ScrollArea className="h-[calc(100vh-200px)]">
-                        <div className="p-6 space-y-6">
-                            {/* Settings Panel */}
-                            {showSettings && (
-                                <Card className="bg-muted/50">
-                                    <CardContent className="p-4 space-y-4">
-                                        <div className="space-y-3">
-                                            <h4 className="font-semibold flex items-center gap-2">
-                                                <Car className="h-4 w-4" />
-                                                Тип транспорта
-                                            </h4>
-                                            <Select
-                                                value={mapSettings.routingMode}
-                                                onValueChange={(value) => updateMapSettings({ routingMode: value })}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="auto">
-                                                        <div className="flex items-center gap-2">
-                                                            <Car className="h-4 w-4" />
-                                                            Автомобиль
-                                                        </div>
-                                                    </SelectItem>
-                                                    <SelectItem value="truck">
-                                                        <div className="flex items-center gap-2">
-                                                            <Truck className="h-4 w-4" />
-                                                            Грузовик
-                                                        </div>
-                                                    </SelectItem>
-                                                    <SelectItem value="pedestrian">
-                                                        <div className="flex items-center gap-2">
-                                                            <User className="h-4 w-4" />
-                                                            Пешком
-                                                        </div>
-                                                    </SelectItem>
-                                                    <SelectItem value="masstransit">
-                                                        <div className="flex items-center gap-2">
-                                                            <Bus className="h-4 w-4" />
-                                                            Общественный транспорт
-                                                        </div>
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            <h4 className="font-semibold flex items-center gap-2">
-                                                <Layers className="h-4 w-4" />
-                                                Настройки карты
-                                            </h4>
-                                            <div className="space-y-3">
-                                                <div className="flex items-center justify-between">
-                                                    <label className="text-sm font-medium">Показать пробки</label>
-                                                    <Switch
-                                                        checked={mapSettings.showTraffic}
-                                                        onCheckedChange={(checked) =>
-                                                            updateMapSettings({ showTraffic: checked })
-                                                        }
-                                                    />
-                                                </div>
-                                                <div className="flex items-center justify-between">
-                                                    <label className="text-sm font-medium">Объекты на карте</label>
-                                                    <Switch
-                                                        checked={mapSettings.showPOI}
-                                                        onCheckedChange={(checked) =>
-                                                            updateMapSettings({ showPOI: checked })
-                                                        }
-                                                    />
-                                                </div>
-                                                <div className="flex items-center justify-between">
-                                                    <label className="text-sm font-medium">Существующие маршруты</label>
-                                                    <Switch
-                                                        checked={mapSettings.showExistingRoutes}
-                                                        onCheckedChange={(checked) =>
-                                                            updateMapSettings({ showExistingRoutes: checked })
-                                                        }
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            <h4 className="font-semibold">Избегать</h4>
-                                            <div className="space-y-3">
-                                                {[
-                                                    { key: 'avoidTolls', label: 'Платные дороги' },
-                                                    { key: 'avoidTraffic', label: 'Пробки' },
-                                                    { key: 'avoidFerries', label: 'Паромы' }
-                                                ].map(({ key, label }) => (
-                                                    <div key={key} className="flex items-center justify-between">
-                                                        <label className="text-sm font-medium">{label}</label>
-                                                        <Switch
-                                                            checked={mapSettings[key as keyof MapSettings] as boolean}
-                                                            onCheckedChange={(checked) =>
-                                                                updateMapSettings({ [key]: checked })
-                                                            }
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )}
-
-                            {/* Search */}
-                            <div className="space-y-3">
-                                <h4 className="font-semibold flex items-center gap-2">
-                                    <Search className="h-4 w-4" />
-                                    Поиск мест
-                                </h4>
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Найти место..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-10"
-                                    />
-                                    {isSearching && (
-                                        <div className="absolute right-3 top-3">
-                                            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                                        </div>
-                                    )}
-                                </div>
-
-                                {searchResults.length > 0 && (
-                                    <Card className="border-2">
-                                        <CardContent className="p-2 max-h-48 overflow-y-auto">
-                                            {searchResults.map((place, index) => (
-                                                <div
-                                                    key={index}
-                                                    className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer rounded transition-colors group"
-                                                    onClick={() => {
-                                                        if (mapRef.current) {
-                                                            mapRef.current.setCenter(place.coords, 15)
-                                                        }
-                                                        setSearchQuery('')
-                                                        setSearchResults([])
-                                                    }}
-                                                >
-                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                        <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-                                                        <div className="min-w-0">
-                                                            <div className="font-medium text-sm truncate">{place.name}</div>
-                                                            {place.description && (
-                                                                <div className="text-xs text-muted-foreground truncate">
-                                                                    {place.description}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            addWaypoint(place)
-                                                        }}
-                                                        className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
-                                                    >
-                                                        <Plus className="h-3 w-3" />
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                        </CardContent>
-                                    </Card>
-                                )}
-                            </div>
-
-                            {/* Existing Routes */}
-                            {existingRoutes && existingRoutes.length > 0 && mapSettings.showExistingRoutes && (
-                                <div className="space-y-3">
-                                    <h4 className="font-semibold flex items-center gap-2">
-                                        <Route className="h-4 w-4" />
-                                        Существующие маршруты
-                                    </h4>
-                                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                                        {existingRoutes.map((route) => (
-                                            <Card key={route.id} className="border">
-                                                <CardContent className="p-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-medium text-sm truncate">
-                                                                {route.name}
-                                                            </div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                {formatDistance(route.distance)} • {formatDuration(route.duration)}
-                                                            </div>
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => toggleRouteVisibility(route.id)}
-                                                            className="h-6 w-6"
-                                                        >
-                                                            {visibleRoutes.has(route.id) ? (
-                                                                <Eye className="h-3 w-3" />
-                                                            ) : (
-                                                                <EyeOff className="h-3 w-3" />
-                                                            )}
-                                                        </Button>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Waypoints */}
-                            {waypoints.length > 0 && (
-                                <div className="space-y-3">
-                                    <h4 className="font-semibold flex items-center gap-2">
-                                        <MapPin className="h-4 w-4" />
-                                        Промежуточные точки
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {waypoints.map((waypoint, index) => (
-                                            <Card key={waypoint.id} className="border">
-                                                <CardContent className="p-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                            <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                                                                {index + 1}
-                                                            </div>
-                                                            <div className="font-medium text-sm truncate">
-                                                                {waypoint.name}
-                                                            </div>
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => removeWaypoint(waypoint.id)}
-                                                            className="text-red-500 hover:bg-red-50 h-6 w-6"
-                                                        >
-                                                            <X className="h-3 w-3" />
-                                                        </Button>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Route Info */}
-                            {routeInfo && (
-                                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                    <TabsList className="grid w-full grid-cols-3">
-                                        <TabsTrigger value="route">Маршрут</TabsTrigger>
-                                        <TabsTrigger value="navigation">Навигация</TabsTrigger>
-                                        <TabsTrigger value="history">История</TabsTrigger>
-                                    </TabsList>
-
-                                    <TabsContent value="route" className="space-y-4 mt-4">
-                                        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-                                            <CardContent className="p-4">
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <h3 className="font-semibold">{routeInfo.name}</h3>
-                                                    <div className="flex gap-1">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => toggleFavorite(routeInfo)}
-                                                            className="h-8 w-8"
-                                                        >
-                                                            {favoriteRoutes.some(r => r.id === routeInfo.id) ?
-                                                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" /> :
-                                                                <StarOff className="h-4 w-4" />
-                                                            }
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => exportRoute('json')}
-                                                            className="h-8 w-8"
-                                                        >
-                                                            <Download className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <Route className="h-4 w-4 text-blue-600" />
-                                                        <div>
-                                                            <div className="text-xs text-gray-600">Расстояние</div>
-                                                            <div className="font-semibold">{formatDistance(routeInfo.distance)}</div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Clock className="h-4 w-4 text-green-600" />
-                                                        <div>
-                                                            <div className="text-xs text-gray-600">Время</div>
-                                                            <div className="font-semibold">{formatDuration(routeInfo.duration)}</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-
-                                        <div className="flex gap-2">
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => exportRoute('gpx')}
-                                                className="flex-1"
-                                            >
-                                                <Download className="mr-1 h-3 w-3" />
-                                                GPX
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => exportRoute('json')}
-                                                className="flex-1"
-                                            >
-                                                <Download className="mr-1 h-3 w-3" />
-                                                JSON
-                                            </Button>
-                                        </div>
-                                    </TabsContent>
-
-                                    <TabsContent value="navigation" className="space-y-4 mt-4">
-                                        {!navigationState.isActive ? (
-                                            <div className="text-center space-y-4">
-                                                <Button
-                                                    onClick={startNavigation}
-                                                    className="w-full bg-green-600 hover:bg-green-700"
-                                                >
-                                                    <Navigation2 className="mr-2 h-4 w-4" />
-                                                    Начать навигацию
-                                                </Button>
-                                                <div className="flex items-center justify-center gap-2 p-3 bg-muted rounded-lg">
-                                                    <span className="text-sm">Голосовые подсказки</span>
-                                                    <Switch
-                                                        checked={navigationState.voiceEnabled}
-                                                        onCheckedChange={(checked) =>
-                                                            setNavigationState(prev => ({ ...prev, voiceEnabled: checked }))
-                                                        }
-                                                    />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-4">
-                                                <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-                                                    <CardContent className="p-4">
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <span className="text-sm font-semibold">Прогресс</span>
-                                                            <Badge variant="outline">
-                                                                {navigationState.progress.toFixed(0)}%
-                                                            </Badge>
-                                                        </div>
-                                                        <div className="w-full bg-green-200 rounded-full h-2">
-                                                            <div
-                                                                className="bg-green-600 h-2 rounded-full transition-all duration-1000"
-                                                                style={{ width: `${navigationState.progress}%` }}
-                                                            />
-                                                        </div>
-                                                        <div className="mt-2 text-sm text-green-700 font-medium">
-                                                            {navigationState.currentInstruction}
-                                                        </div>
-                                                    </CardContent>
-                                                </Card>
-
-                                                <div className="flex items-center justify-center gap-2">
-                                                    {navigationState.isPlaying ? (
-                                                        <Button onClick={pauseNavigation} variant="outline" size="sm">
-                                                            <Pause className="mr-1 h-3 w-3" />
-                                                            Пауза
-                                                        </Button>
-                                                    ) : (
-                                                        <Button onClick={resumeNavigation} className="bg-green-600 hover:bg-green-700" size="sm">
-                                                            <Play className="mr-1 h-3 w-3" />
-                                                            Продолжить
-                                                        </Button>
-                                                    )}
-                                                    <Button onClick={stopNavigation} variant="destructive" size="sm">
-                                                        <Square className="mr-1 h-3 w-3" />
-                                                        Стоп
-                                                    </Button>
-                                                    <Button
-                                                        onClick={() =>
-                                                            setNavigationState(prev => ({ ...prev, voiceEnabled: !prev.voiceEnabled }))
-                                                        }
-                                                        variant="outline"
-                                                        size="icon"
-                                                        className="h-8 w-8"
-                                                    >
-                                                        {navigationState.voiceEnabled ?
-                                                            <Volume2 className="h-3 w-3" /> :
-                                                            <VolumeX className="h-3 w-3" />
-                                                        }
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </TabsContent>
-
-                                    <TabsContent value="history" className="space-y-4 mt-4">
-                                        <div className="flex items-center justify-between">
-                                            <h4 className="font-semibold">История</h4>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => setRouteHistory([])}
-                                                className="h-6 w-6"
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                        </div>
-
-                                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                                            {routeHistory.length === 0 ? (
-                                                <div className="text-center py-8">
-                                                    <History className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                                                    <p className="text-sm text-muted-foreground">История пуста</p>
-                                                </div>
-                                            ) : (
-                                                routeHistory.map((route) => (
-                                                    <Card key={route.id} className="cursor-pointer hover:bg-muted transition-colors">
-                                                        <CardContent className="p-3">
-                                                            <div className="flex justify-between items-start">
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="font-medium text-sm truncate">{route.name}</div>
-                                                                    <div className="text-xs text-muted-foreground">
-                                                                        {formatDistance(route.distance)} • {formatDuration(route.duration)}
-                                                                    </div>
-                                                                    <div className="text-xs text-muted-foreground">
-                                                                        {new Date(route.timestamp).toLocaleString()}
-                                                                    </div>
-                                                                </div>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation()
-                                                                        toggleFavorite(route)
-                                                                    }}
-                                                                    className="h-6 w-6"
-                                                                >
-                                                                    {favoriteRoutes.some(r => r.id === route.id) ?
-                                                                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> :
-                                                                        <StarOff className="h-3 w-3" />
-                                                                    }
-                                                                </Button>
-                                                            </div>
-                                                        </CardContent>
-                                                    </Card>
-                                                ))
-                                            )}
-                                        </div>
-                                    </TabsContent>
-                                </Tabs>
-                            )}
-
-                            {!routeInfo && (
-                                <Card className="border-dashed">
-                                    <CardContent className="p-6 text-center">
-                                        <Navigation2 className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                                        <div className="font-medium mb-1">Постройте маршрут</div>
-                                        <div className="text-sm text-muted-foreground">
-                                            Используйте кнопки на карте для планирования
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </div>
-                    </ScrollArea>
-                </CardContent>
-            </Card>
-
-            {/* Map */}
-            <Card className="flex-1 overflow-hidden shadow-lg">
-                <CardContent className="p-0 h-full">
-                    <YMaps
-                        query={{
-                            apikey: YANDEX_API_KEY,
-                            load: "package.full",
-                            lang: "ru_RU"
-                        }}
-                    >
-                        <Map
-                            defaultState={{
-                                center: MOSCOW_CENTER,
-                                zoom: 10,
-                                controls: ['zoomControl', 'fullscreenControl']
-                            }}
-                            width="100%"
-                            height="100%"
-                            options={{
-                                suppressMapOpenBlock: true,
-                                suppressObsoleteBrowserNotifier: true
-                            }}
-                            onLoad={(ymaps) => {
-                                ymapsRef.current = ymaps
-                            }}
-                            instanceRef={(ref) => {
-                                mapRef.current = ref
-                            }}
-                        >
-                            <RouteButton
-                                options={{
-                                    float: "right",
-                                    size: "large"
-                                }}
-                                onRouteBuilt={handleRouteBuilt}
-                            />
-
-                            {mapSettings.showTraffic && (
-                                <TrafficControl
-                                    options={{
-                                        float: "right"
-                                    }}
-                                />
-                            )}
-
-                            <RouteEditor />
-
-                            {/* Existing routes visualization */}
-                            {existingRoutes?.map((route) => (
-                                visibleRoutes.has(route.id) && (
-                                    <Placemark
-                                        key={`start-${route.id}`}
-                                        geometry={[55.751574 + Math.random() * 0.1, 37.573856 + Math.random() * 0.1]}
-                                        options={{
-                                            preset: 'islands#greenDotIconWithCaption',
-                                            iconCaptionMaxWidth: '200'
-                                        }}
-                                        properties={{
-                                            iconCaption: route.name,
-                                            balloonContent: `
-                                                <div>
-                                                    <strong>${route.name}</strong><br/>
-                                                    ${route.startAddress} → ${route.endAddress}<br/>
-                                                    ${formatDistance(route.distance)} • ${formatDuration(route.duration)}
-                                                </div>
-                                            `
-                                        }}
-                                    />
-                                )
-                            ))}
-
-                            {/* Waypoints */}
-                            {waypoints.map((waypoint, index) => (
-                                <Placemark
-                                    key={waypoint.id}
-                                    geometry={waypoint.coords}
-                                    options={{
-                                        preset: 'islands#violetDotIconWithCaption',
-                                        iconCaptionMaxWidth: '200'
-                                    }}
-                                    properties={{
-                                        iconCaption: `${index + 1}. ${waypoint.name}`,
-                                        balloonContent: waypoint.name
-                                    }}
-                                />
-                            ))}
-                        </Map>
-                    </YMaps>
-                </CardContent>
-            </Card>
-        </div>
-    )
+														{riskAssessment.recommendations.length >
+															0 && (
+															<div>
+																<h5 className="font-medium mb-2">
+																	Рекомендации
+																</h5>
+																<ul className="text-sm text-muted-foreground space-y-1">
+																	{riskAssessment.recommendations.map(
+																		(rec, index) => (
+																			<li
+																				key={index}
+																				className="flex items-start gap-2"
+																			>
+																				<span className="text-green-600">
+																					•
+																				</span>
+																				{rec}
+																			</li>
+																		)
+																	)}
+																</ul>
+															</div>
+														)}
+													</CardContent>
+												</Card>
+											)}
+										</div>
+									) : (
+										<Alert>
+											<CloudRain className="h-4 w-4" />
+											<AlertDescription>
+												Нет данных о погоде для выбранного маршрута
+											</AlertDescription>
+										</Alert>
+									)}
+								</div>
+							) : (
+								<Alert>
+									<MapPin className="h-4 w-4" />
+									<AlertDescription>
+										Выберите маршрут с начальной и конечной точкой для просмотра
+										погодных данных
+									</AlertDescription>
+								</Alert>
+							)}
+						</TabsContent>
+					</Tabs>
+				</CardContent>
+			</Card>
+		</div>
+	);
 }

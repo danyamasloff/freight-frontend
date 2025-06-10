@@ -8,6 +8,7 @@ import { AuthProvider } from '@/components/auth-provider'
 import { store, persistor } from '@/app/store'
 import { Toaster } from '@/components/ui/sonner'
 import { ErrorBoundary } from 'react-error-boundary'
+import { NotificationProvider } from '@/contexts/NotificationContext'
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -64,13 +65,14 @@ export function AppProviders({ children }: AppProvidersProps) {
                         <QueryClientProvider client={queryClient}>
                             <BrowserRouter>
                                 <AuthProvider>
-                                    {children}
+                                    <NotificationProvider>
+                                        {children}
+                                    </NotificationProvider>
                                 </AuthProvider>
                             </BrowserRouter>
                             {import.meta.env.DEV && (
                                 <ReactQueryDevtools
                                     initialIsOpen={false}
-                                    position="bottom-right"
                                 />
                             )}
                         </QueryClientProvider>

@@ -32,7 +32,7 @@ export function DriverStatusPanel({ driverId, className, compact = false }: Driv
         getAvailableStatuses,
     } = useDriverStatus({ driverId })
 
-    const statusConfig = DRIVER_STATUS_CONFIG[statusState.currentStatus]
+    const statusConfig = DRIVER_STATUS_CONFIG[statusState.currentStatus] || DRIVER_STATUS_CONFIG[DrivingStatus.OFF_DUTY]
     const availableStatuses = getAvailableStatuses()
 
     // Calculate progress percentages
@@ -126,12 +126,15 @@ export function DriverStatusPanel({ driverId, className, compact = false }: Driv
                             <span>Время вождения сегодня</span>
                             <span>{formatDuration(statusState.totalDrivingTime)} / 9ч</span>
                         </div>
-                        <Progress
-                            value={dailyDrivingProgress}
-                            className="h-2"
-                            indicatorClassName={dailyDrivingProgress > 90 ? 'bg-red-500' :
-                                dailyDrivingProgress > 75 ? 'bg-yellow-500' : 'bg-green-500'}
-                        />
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                                className={`h-2 rounded-full transition-all ${
+                                    dailyDrivingProgress > 90 ? 'bg-red-500' :
+                                    dailyDrivingProgress > 75 ? 'bg-yellow-500' : 'bg-green-500'
+                                }`}
+                                style={{ width: `${dailyDrivingProgress}%` }}
+                            />
+                        </div>
                     </div>
 
                     {statusState.currentStatus === DrivingStatus.DRIVING && statusState.sessionStart && (
@@ -142,12 +145,15 @@ export function DriverStatusPanel({ driverId, className, compact = false }: Driv
                                     {formatDuration(statusState.currentSessionDuration)} / 4.5ч
                                 </span>
                             </div>
-                            <Progress
-                                value={sessionProgress}
-                                className="h-2"
-                                indicatorClassName={sessionProgress > 90 ? 'bg-red-500' :
-                                    sessionProgress > 75 ? 'bg-yellow-500' : 'bg-blue-500'}
-                            />
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                    className={`h-2 rounded-full transition-all ${
+                                        sessionProgress > 90 ? 'bg-red-500' :
+                                        sessionProgress > 75 ? 'bg-yellow-500' : 'bg-blue-500'
+                                    }`}
+                                    style={{ width: `${sessionProgress}%` }}
+                                />
+                            </div>
                         </div>
                     )}
                 </div>

@@ -16,11 +16,12 @@ export interface DriverSummary {
     id: number
     name: string
     licenseNumber: string
-    phone: string
+    phone?: string
     email?: string
     experience?: number
     rating?: number
     status: DrivingStatus
+    avatar?: string
     currentLocation?: {
         lat: number
         lng: number

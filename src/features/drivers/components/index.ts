@@ -1,4 +1,4 @@
-export { DriversPage } from './drivers-page'
+export { EnhancedDriversPage as DriversPage } from './enhanced-drivers-page'
 export { DriverDetailPage } from './driver-detail-page'
 export { CreateDriverPage } from './create-driver-page'
 export { EditDriverPage } from './edit-driver-page'
