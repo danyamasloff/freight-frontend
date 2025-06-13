@@ -33,7 +33,6 @@ import {
 	ForbiddenPage,
 	NetworkErrorPage,
 } from "@/components/error-pages";
-import ErrorPagesDemoPage from "@/pages/demo/error-pages-demo";
 import { WeatherRouteDemoPage } from "@/pages/weather";
 
 export function AppRouter() {
@@ -83,7 +82,6 @@ export function AppRouter() {
 				<Route path={ROUTES.COMPLIANCE} element={<CompliancePage />} />
 
 				{/* Демо страницы */}
-				<Route path="/demo/error-pages" element={<ErrorPagesDemoPage />} />
 				<Route path={ROUTES.WEATHER_ROUTE_DEMO} element={<WeatherRouteDemoPage />} />
 			</Route>
 
