@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useUpdateDriverStatusMutation, useGetDriverQuery } from '@/shared/api/driversSlice'
 import { DrivingStatus, WORKING_TIME_LIMITS } from '../types'
+import { DrivingStatusEnum } from '@/shared/types/backend-sync'
 import { useToast } from '@/hooks/use-toast'
 
 interface UseDriverStatusOptions {
@@ -122,9 +123,8 @@ export function useDriverStatus({
             const timestamp = new Date().toISOString()
 
             await updateStatus({
-                driverId,
-                status: newStatus,
-                timestamp,
+                id: driverId,
+                status: newStatus as DrivingStatusEnum,
             }).unwrap()
 
             // Update local state

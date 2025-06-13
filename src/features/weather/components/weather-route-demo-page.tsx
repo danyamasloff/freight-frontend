@@ -1,5 +1,5 @@
 import React from "react";
-import { CreateRoutePage } from "@/features/routes/components";
+import { RoutePlanner } from "@/features/routes/components";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CloudRain, MapPin, Navigation, Shield } from "lucide-react";
@@ -145,7 +145,7 @@ export function WeatherRouteDemoPage() {
 			</Card>
 
 			{/* Основной компонент планирования */}
-			<CreateRoutePage />
+			<RoutePlanner />
 
 			{/* Инструкции */}
 			<Card>

@@ -1,43 +1,119 @@
 import { apiSlice } from './apiSlice';
 import type {
-    DriverSummary,
-    DriverDetail,
-    DriverCreate,
-    DriverUpdate,
-    DriverMedical,
-    DriverQualification,
-    DriverRestAnalysis,
-    DriverPerformance,
-    DrivingStatus
-} from '@/shared/types/driver';
-import type { RouteResponse } from '@/shared/types/api';
+    DriverDetailBackendDto,
+    DriverSummaryBackendDto,
+    GeoPointDto
+} from '@/shared/types/backend-sync';
+import { DrivingStatusEnum } from '@/shared/types/backend-sync';
+
+// Функции трансформации для совместимости с существующим кодом
+const transformDriverDetail = (driver: DriverDetailBackendDto): any => {
+    return {
+        id: driver.id,
+        firstName: driver.firstName,
+        lastName: driver.lastName,
+        middleName: driver.middleName,
+        birthDate: driver.birthDate,
+        licenseNumber: driver.licenseNumber,
+        licenseIssueDate: driver.licenseIssueDate,
+        licenseExpiryDate: driver.licenseExpiryDate,
+        licenseCategories: driver.licenseCategories,
+        phoneNumber: driver.phoneNumber,
+        email: driver.email,
+        drivingExperienceYears: driver.drivingExperienceYears,
+        hasDangerousGoodsCertificate: driver.hasDangerousGoodsCertificate,
+        dangerousGoodsCertificateExpiry: driver.dangerousGoodsCertificateExpiry,
+        hasInternationalTransportationPermit: driver.hasInternationalTransportationPermit,
+        hourlyRate: driver.hourlyRate,
+        perKilometerRate: driver.perKilometerRate,
+        currentDrivingStatus: driver.currentDrivingStatus,
+        currentStatusStartTime: driver.currentStatusStartTime,
+        dailyDrivingMinutesToday: driver.dailyDrivingMinutesToday,
+        continuousDrivingMinutes: driver.continuousDrivingMinutes,
+        weeklyDrivingMinutes: driver.weeklyDrivingMinutes,
+        currentLocation: driver.currentLocation,
+        createdAt: driver.createdAt,
+        updatedAt: driver.updatedAt,
+    };
+};
+
+const transformDriverSummary = (driver: DriverSummaryBackendDto): any => {
+    return {
+        id: driver.id,
+        firstName: driver.firstName,
+        lastName: driver.lastName,
+        middleName: driver.middleName,
+        licenseNumber: driver.licenseNumber,
+        phoneNumber: driver.phoneNumber,
+        drivingExperienceYears: driver.drivingExperienceYears,
+        currentDrivingStatus: driver.currentDrivingStatus,
+        currentLocation: driver.currentLocation,
+    };
+};
+
+// Функция для трансформации данных Frontend в Backend формат
+const transformToBackendDriver = (frontendDriver: any): Partial<DriverDetailBackendDto> => {
+    return {
+        id: frontendDriver.id,
+        firstName: frontendDriver.firstName,
+        lastName: frontendDriver.lastName,
+        middleName: frontendDriver.middleName,
+        birthDate: frontendDriver.birthDate,
+        licenseNumber: frontendDriver.licenseNumber,
+        licenseIssueDate: frontendDriver.licenseIssueDate,
+        licenseExpiryDate: frontendDriver.licenseExpiryDate,
+        licenseCategories: frontendDriver.licenseCategories,
+        phoneNumber: frontendDriver.phoneNumber,
+        email: frontendDriver.email,
+        drivingExperienceYears: frontendDriver.drivingExperienceYears,
+        hasDangerousGoodsCertificate: frontendDriver.hasDangerousGoodsCertificate || false,
+        dangerousGoodsCertificateExpiry: frontendDriver.dangerousGoodsCertificateExpiry,
+        hasInternationalTransportationPermit: frontendDriver.hasInternationalTransportationPermit || false,
+        hourlyRate: frontendDriver.hourlyRate,
+        perKilometerRate: frontendDriver.perKilometerRate,
+        currentDrivingStatus: frontendDriver.currentDrivingStatus || DrivingStatusEnum.OFF_DUTY,
+        currentStatusStartTime: frontendDriver.currentStatusStartTime,
+        dailyDrivingMinutesToday: frontendDriver.dailyDrivingMinutesToday || 0,
+        continuousDrivingMinutes: frontendDriver.continuousDrivingMinutes || 0,
+        weeklyDrivingMinutes: frontendDriver.weeklyDrivingMinutes || 0,
+        currentLocation: frontendDriver.currentLocation,
+    };
+};
 
 export const driversSlice = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
-        // CRUD операции
-        getDrivers: builder.query<DriverSummary[], void>({
+        // === CRUD операции (синхронизированы с Backend) ===
+        getDrivers: builder.query<any[], void>({
             query: () => '/drivers',
             providesTags: ['Driver'],
+            transformResponse: (response: DriverSummaryBackendDto[]) => 
+                response.map(transformDriverSummary),
         }),
-        getDriver: builder.query<DriverDetail, number>({
+        getDriver: builder.query<any, number>({
             query: (id) => `/drivers/${id}`,
             providesTags: (result, error, id) => [{ type: 'Driver', id }],
+            transformResponse: (response: DriverDetailBackendDto) => 
+                transformDriverDetail(response),
         }),
-        createDriver: builder.mutation<DriverDetail, DriverCreate>({
+        createDriver: builder.mutation<any, Partial<any>>({
             query: (driverData) => ({
                 url: '/drivers',
                 method: 'POST',
-                body: driverData,
+                body: transformToBackendDriver(driverData),
             }),
             invalidatesTags: ['Driver'],
+            transformResponse: (response: DriverDetailBackendDto) => 
+                transformDriverDetail(response),
         }),
-        updateDriver: builder.mutation<DriverDetail, DriverUpdate>({
-            query: (driverData) => ({
-                url: `/drivers/${driverData.id}`,
+        updateDriver: builder.mutation<any, { id: number; data: Partial<any> }>({
+            query: ({ id, data }) => ({
+                url: `/drivers/${id}`,
                 method: 'PUT',
-                body: driverData,
+                body: transformToBackendDriver({ ...data, id }),
             }),
             invalidatesTags: (result, error, { id }) => [{ type: 'Driver', id }],
+            transformResponse: (response: DriverDetailBackendDto) => 
+                transformDriverDetail(response),
         }),
         deleteDriver: builder.mutation<void, number>({
             query: (id) => ({
@@ -47,81 +123,81 @@ export const driversSlice = apiSlice.injectEndpoints({
             invalidatesTags: ['Driver'],
         }),
 
-        // Операции с медицинскими данными
-        getDriverMedical: builder.query<DriverMedical, number>({
-            query: (driverId) => `/drivers/${driverId}/medical`,
-            providesTags: (result, error, driverId) => [{ type: 'Driver', id: driverId }],
-        }),
-        updateDriverMedical: builder.mutation<DriverMedical, { driverId: number; data: DriverMedical }>({
-            query: ({ driverId, data }) => ({
-                url: `/drivers/${driverId}/medical`,
+        // === Специальные операции для водителей ===
+        updateDrivingStatus: builder.mutation<any, { 
+            id: number; 
+            status: DrivingStatusEnum;
+            location?: GeoPointDto;
+        }>({
+            query: ({ id, status, location }) => ({
+                url: `/drivers/${id}/status`,
                 method: 'PUT',
-                body: data,
+                body: { status, location },
+            }),
+            invalidatesTags: (result, error, { id }) => [{ type: 'Driver', id }],
+            transformResponse: (response: DriverDetailBackendDto) => 
+                transformDriverDetail(response),
+        }),
+
+        updateLocation: builder.mutation<any, { 
+            id: number; 
+            location: GeoPointDto;
+        }>({
+            query: ({ id, location }) => ({
+                url: `/drivers/${id}/location`,
+                method: 'PUT',
+                body: location,
+            }),
+            invalidatesTags: (result, error, { id }) => [{ type: 'Driver', id }],
+            transformResponse: (response: DriverDetailBackendDto) => 
+                transformDriverDetail(response),
+        }),
+
+        // === Получение водителей по статусу ===
+        getDriversByStatus: builder.query<any[], DrivingStatusEnum>({
+            query: (status) => `/drivers/status/${status}`,
+            providesTags: ['Driver'],
+            transformResponse: (response: DriverSummaryBackendDto[]) => 
+                response.map(transformDriverSummary),
+        }),
+
+        // === Получение доступных водителей ===
+        getAvailableDrivers: builder.query<any[], void>({
+            query: () => '/drivers/available',
+            providesTags: ['Driver'],
+            transformResponse: (response: DriverSummaryBackendDto[]) => 
+                response.map(transformDriverSummary),
+        }),
+
+        // === Упрощенное обновление статуса водителя ===
+        updateDriverStatus: builder.mutation<any, { 
+            driverId: number; 
+            status: any;
+            timestamp?: string;
+        }>({
+            query: ({ driverId, status }) => ({
+                url: `/drivers/${driverId}/status`,
+                method: 'PUT',
+                body: { status },
             }),
             invalidatesTags: (result, error, { driverId }) => [{ type: 'Driver', id: driverId }],
         }),
 
-        // Операции с квалификациями
-        getDriverQualifications: builder.query<string[], number>({
-            query: (driverId) => `/drivers/${driverId}/qualifications`,
-            providesTags: (result, error, driverId) => [{ type: 'Driver', id: driverId }],
-        }),
-        updateDriverQualifications: builder.mutation<string[], { driverId: number; qualifications: string[] }>({
-            query: ({ driverId, qualifications }) => ({
-                url: `/drivers/${driverId}/qualifications`,
-                method: 'PUT',
-                body: qualifications,
-            }),
-            invalidatesTags: (result, error, { driverId }) => [{ type: 'Driver', id: driverId }],
-        }),
-
-        // Операции с режимом труда и отдыха
-        analyzeDriverRestTime: builder.query<DriverRestAnalysis, { driverId: number; routeId: number }>({
-            query: ({ driverId, routeId }) => `/drivers/${driverId}/rest-analysis/route/${routeId}`,
-        }),
-        analyzeRouteRestTime: builder.mutation<DriverRestAnalysis, {
-            driverId: number;
-            route: RouteResponse;
+        // === Анализ времени отдыха для маршрута ===
+        analyzeRouteRestTime: builder.mutation<any, { 
+            driverId: number; 
+            route: any;
             departureTime: string;
         }>({
             query: ({ driverId, route, departureTime }) => ({
-                url: `/drivers/${driverId}/analyze-rest-time?departureTime=${departureTime}`,
+                url: `/drivers/${driverId}/rest-time-analysis`,
                 method: 'POST',
-                body: route,
+                body: { 
+                    routeId: route.id,
+                    departureTime,
+                    currentLocation: route.startLocation
+                },
             }),
-        }),
-        updateDriverStatus: builder.mutation<DriverDetail, {
-            driverId: number;
-            status: DrivingStatus;
-            timestamp: string;
-        }>({
-            query: ({ driverId, status, timestamp }) => ({
-                url: `/drivers/${driverId}/status?status=${status}&timestamp=${timestamp}`,
-                method: 'PUT',
-            }),
-            invalidatesTags: (result, error, { driverId }) => [{ type: 'Driver', id: driverId }],
-        }),
-
-        // Анализ эффективности водителя
-        getDriverPerformance: builder.query<DriverPerformance, {
-            driverId: number;
-            startDate?: string;
-            endDate?: string;
-        }>({
-            query: ({ driverId, startDate, endDate }) => {
-                let url = `/drivers/${driverId}/performance`;
-                const params = new URLSearchParams();
-
-                if (startDate) params.append('startDate', startDate);
-                if (endDate) params.append('endDate', endDate);
-
-                if (params.toString()) {
-                    url += `?${params.toString()}`;
-                }
-
-                return url;
-            },
-            providesTags: (result, error, { driverId }) => [{ type: 'Driver', id: driverId }],
         }),
     }),
 });
@@ -132,12 +208,10 @@ export const {
     useCreateDriverMutation,
     useUpdateDriverMutation,
     useDeleteDriverMutation,
-    useGetDriverMedicalQuery,
-    useUpdateDriverMedicalMutation,
-    useGetDriverQualificationsQuery,
-    useUpdateDriverQualificationsMutation,
-    useAnalyzeDriverRestTimeQuery,
-    useAnalyzeRouteRestTimeMutation,
+    useUpdateDrivingStatusMutation,
+    useUpdateLocationMutation,
+    useGetDriversByStatusQuery,
+    useGetAvailableDriversQuery,
     useUpdateDriverStatusMutation,
-    useGetDriverPerformanceQuery,
+    useAnalyzeRouteRestTimeMutation,
 } = driversSlice;
