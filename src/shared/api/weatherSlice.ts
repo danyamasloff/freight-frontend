@@ -1,4 +1,4 @@
-import { apiSlice } from './apiSlice'
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type {
     WeatherData,
     WeatherForecast,
@@ -8,90 +8,125 @@ import type {
     RoutePointWeather
 } from '@/shared/types/api'
 
-export const weatherSlice = apiSlice.injectEndpoints({
+// Типы для погодных данных
+export interface WeatherDataDto {
+    temperature: number
+    feelsLike?: number
+    humidity: number
+    pressure: number
+    windSpeed: number
+    windDirection?: number
+    cloudiness?: number
+    visibility?: number
+    rainVolume1h?: number
+    rainVolume3h?: number
+    snowVolume1h?: number
+    snowVolume3h?: number
+    weatherId?: number
+    weatherMain?: string
+    weatherDescription?: string
+    weatherIcon?: string
+    sunrise?: string
+    sunset?: string
+    cityName?: string
+    forecastTime?: string
+    riskScore?: number
+}
+
+export interface WeatherForecastDto {
+    cityName: string
+    cityCountry?: string
+    forecasts: WeatherDataDto[]
+}
+
+export interface RoutePointWeatherDto {
+    pointIndex: number
+    distanceFromStart: number
+    estimatedTime: string
+    weatherData: WeatherDataDto
+}
+
+export interface WeatherHazardWarningDto {
+    hazardType: string
+    severity: string
+    distanceFromStart: number
+    expectedTime: string
+    description: string
+    recommendation: string
+}
+
+export interface RouteWeatherForecastDto {
+    departureTime: string
+    pointForecasts: RoutePointWeatherDto[]
+    hazardWarnings: WeatherHazardWarningDto[]
+}
+
+// API slice для погоды
+export const weatherApi = createApi({
+    reducerPath: 'weatherApi',
+    baseQuery: fetchBaseQuery({
+        baseUrl: '/api/weather',
+        prepareHeaders: (headers) => {
+            const token = localStorage.getItem('token')
+            if (token) {
+                headers.set('authorization', `Bearer ${token}`)
+            }
+            return headers
+        },
+    }),
     endpoints: (builder) => ({
-        // Получить текущую погоду для указанных координат
-        getCurrentWeather: builder.query<WeatherData, { lat: number; lon: number }>({
+        // Текущая погода
+        getCurrentWeather: builder.query<WeatherDataDto, { lat: number, lon: number }>({
             query: ({ lat, lon }) => ({
-                url: `/weather/current`,
+                url: '/current',
                 params: { lat, lon }
             }),
-            providesTags: ['Weather'],
         }),
 
-        // Получить 5-дневный прогноз погоды для указанных координат
-        getWeatherForecast: builder.query<WeatherForecast, { lat: number; lon: number }>({
+        // Прогноз погоды
+        getWeatherForecast: builder.query<WeatherForecastDto, { lat: number, lon: number }>({
             query: ({ lat, lon }) => ({
-                url: `/weather/forecast`,
+                url: '/forecast',
                 params: { lat, lon }
             }),
-            providesTags: ['Weather'],
         }),
 
-        // Получить прогноз погоды для маршрута с учетом времени движения
-        getRouteWeatherForecast: builder.mutation<RouteWeatherForecast, {
-            route: RouteResponse
-            departureTime: string
+        // Прогноз погоды для времени прибытия
+        getWeatherForArrival: builder.query<WeatherDataDto, {
+            lat: number,
+            lon: number,
+            arrivalTime: string
+        }>({
+            query: ({ lat, lon, arrivalTime }) => ({
+                url: '/forecast-for-arrival',
+                params: { lat, lon, arrivalTime }
+            }),
+        }),
+
+        // Прогноз погоды для маршрута
+        getRouteWeatherForecast: builder.mutation<RouteWeatherForecastDto, {
+            route: any,
+            departureTime?: string
         }>({
             query: ({ route, departureTime }) => ({
-                url: `/weather/route-forecast`,
+                url: '/route-forecast',
                 method: 'POST',
                 body: route,
-                params: { 
-                    departureTime: new Date(departureTime).toISOString()
-                },
+                params: departureTime ? { departureTime } : {}
             }),
-            invalidatesTags: ['Weather'],
         }),
 
-        // Получить предупреждения о погодных опасностях на маршруте
-        getHazardWarnings: builder.mutation<WeatherHazardWarning[], {
-            route: RouteResponse
-            departureTime: string
+        // Предупреждения о погодных опасностях
+        getHazardWarnings: builder.mutation<WeatherHazardWarningDto[], {
+            route: any,
+            departureTime?: string
         }>({
             query: ({ route, departureTime }) => ({
-                url: `/weather/hazard-warnings`,
+                url: '/hazard-warnings',
                 method: 'POST',
                 body: route,
-                params: { 
-                    departureTime: new Date(departureTime).toISOString()
-                },
+                params: departureTime ? { departureTime } : {}
             }),
-            invalidatesTags: ['Weather'],
-        }),
-
-        // Анализ погодных рисков для конкретной точки и времени
-        analyzeWeatherRisk: builder.query<number, {
-            lat: number
-            lon: number
-            targetTime: string
-        }>({
-            query: ({ lat, lon, targetTime }) => ({
-                url: `/weather/analyze-risk`,
-                params: { 
-                    lat, 
-                    lon, 
-                    targetTime: new Date(targetTime).toISOString()
-                }
-            }),
-            providesTags: ['Weather'],
-        }),
-
-        // Получить прогноз погоды для конкретного времени (для точки маршрута)
-        getForecastForTime: builder.query<WeatherData, {
-            lat: number
-            lon: number
-            targetTime: string
-        }>({
-            query: ({ lat, lon, targetTime }) => ({
-                url: `/weather/forecast-for-time`,
-                params: { 
-                    lat, 
-                    lon, 
-                    targetTime: new Date(targetTime).toISOString()
-                }
-            }),
-            providesTags: ['Weather'],
         }),
     }),
 })
@@ -99,12 +134,7 @@ export const weatherSlice = apiSlice.injectEndpoints({
 export const {
     useGetCurrentWeatherQuery,
     useGetWeatherForecastQuery,
+    useGetWeatherForArrivalQuery,
     useGetRouteWeatherForecastMutation,
     useGetHazardWarningsMutation,
-    useAnalyzeWeatherRiskQuery,
-    useGetForecastForTimeQuery,
-    useLazyGetCurrentWeatherQuery,
-    useLazyGetWeatherForecastQuery,
-    useLazyAnalyzeWeatherRiskQuery,
-    useLazyGetForecastForTimeQuery,
-} = weatherSlice
+} = weatherApi

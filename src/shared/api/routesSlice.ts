@@ -1,18 +1,25 @@
 import { apiSlice } from './apiSlice'
 import type {
+    RouteRequestDto,
+    RouteResponseDto,
+    RouteWeatherForecastBackendDto,
+    WeatherHazardWarningDto,
+    GeoLocationBackendDto
+} from '@/shared/types/backend-sync'
+import {
+    transformToFrontendRoute,
+    transformToBackendRouteRequest
+} from '@/shared/types/backend-sync'
+import type {
     RouteSummary,
     RouteDetail,
-    RouteRequest,
-    RouteResponse,
     RouteCreateUpdate,
-    RouteWeatherForecast,
-    WeatherHazardWarning,
     GeoLocation
 } from '@/shared/types/api'
 
 // Функция для преобразования данных из API в формат фронтенда
 const transformRouteData = (route: any): RouteDetail => {
-    console.log('Transforming route data:', route) // Отладочная информация
+    console.log('Transforming route data:', route)
     
     return {
         ...route,
@@ -73,9 +80,45 @@ const transformRouteSummary = (route: any): RouteSummary => {
     }
 }
 
+// Интерфейсы для запросов (синхронизированы с Backend)
+export interface RouteCalculateRequest extends RouteRequestDto {
+    // Дополнительные поля для удобства Frontend
+    startLat: number;
+    startLon: number;
+    endLat: number;
+    endLon: number;
+    vehicleId?: number;
+    driverId?: number;
+    cargoId?: number;
+    departureTime?: string;
+    considerWeather?: boolean;
+    considerTraffic?: boolean;
+}
+
+export interface RoutePlanRequest {
+    fromLat: number;
+    fromLon: number;
+    toLat: number;
+    toLon: number;
+    vehicleType?: string;
+}
+
+export interface RoutePlanByNameRequest {
+    fromPlace: string;
+    toPlace: string;
+    vehicleType?: string;
+}
+
+export interface FindPlaceRequest {
+    query: string;
+    placeType?: string;
+    lat?: number;
+    lon?: number;
+}
+
 export const routesSlice = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
-        // CRUD операции
+        // === CRUD операции для сохраненных маршрутов ===
         getRoutes: builder.query<RouteSummary[], void>({
             query: () => '/routes',
             providesTags: ['Route'],
@@ -112,89 +155,91 @@ export const routesSlice = apiSlice.injectEndpoints({
             invalidatesTags: ['Route'],
         }),
 
-        // Расчет маршрутов - ОБЯЗАТЕЛЬНО mutation для POST запросов
-        calculateRoute: builder.mutation<RouteResponse, RouteRequest>({
-            query: (routeData) => ({
+        // === Расчет маршрутов (синхронизировано с Backend) ===
+        calculateRoute: builder.mutation<RouteResponseDto, RouteRequestDto>({
+            query: (requestData) => ({
                 url: '/routes/calculate',
                 method: 'POST',
-                body: routeData,
+                body: transformToBackendRouteRequest(requestData),
             }),
+            transformResponse: (response: RouteResponseDto) => transformToFrontendRoute(response),
         }),
 
-        // Планирование маршрута по координатам - используем query для GET
-        planRoute: builder.query<RouteResponse, {
-            fromLat: number
-            fromLon: number
-            toLat: number
-            toLon: number
-            vehicleType?: string
-        }>({
+        // === Планирование маршрута по координатам ===
+        planRoute: builder.query<RouteResponseDto, RoutePlanRequest>({
             query: ({ fromLat, fromLon, toLat, toLon, vehicleType = 'truck' }) =>
                 `/routes/plan?fromLat=${fromLat}&fromLon=${fromLon}&toLat=${toLat}&toLon=${toLon}&vehicleType=${vehicleType}`,
+            transformResponse: (response: RouteResponseDto) => transformToFrontendRoute(response),
         }),
 
-        // Планирование маршрута по названиям - используем query для GET
-        planRouteByNames: builder.query<RouteResponse, {
-            fromPlace: string
-            toPlace: string
-            vehicleType?: string
-        }>({
+        // === Планирование маршрута по названиям ===
+        planRouteByNames: builder.query<RouteResponseDto, RoutePlanByNameRequest>({
             query: ({ fromPlace, toPlace, vehicleType = 'truck' }) =>
                 `/routes/plan-by-name?fromPlace=${encodeURIComponent(fromPlace)}&toPlace=${encodeURIComponent(toPlace)}&vehicleType=${vehicleType}`,
+            transformResponse: (response: RouteResponseDto) => transformToFrontendRoute(response),
         }),
 
-        // Поиск мест - query для GET
-        findPlace: builder.query<GeoLocation[], {
-            query: string
-            placeType?: string
-            lat?: number
-            lon?: number
-        }>({
+        // === Поиск мест ===
+        findPlace: builder.query<GeoLocationBackendDto[], FindPlaceRequest>({
             query: ({ query, placeType, lat, lon }) => {
-                const params = new URLSearchParams({ query })
-                if (placeType) params.append('placeType', placeType)
-                if (lat) params.append('lat', lat.toString())
-                if (lon) params.append('lon', lon.toString())
-                return `/routes/find-place?${params}`
+                const params = new URLSearchParams({ query });
+                if (placeType) params.append('placeType', placeType);
+                if (lat !== undefined) params.append('lat', lat.toString());
+                if (lon !== undefined) params.append('lon', lon.toString());
+                return `/routes/find-place?${params.toString()}`;
             },
         }),
 
-        // Погода на маршруте - mutation для POST
-        getRouteWeatherForecast: builder.mutation<RouteWeatherForecast, {
-            route: RouteResponse
-            departureTime?: string
+        // === Погодный прогноз для маршрута ===
+        getRouteWeatherForecast: builder.mutation<RouteWeatherForecastBackendDto, {
+            route: RouteResponseDto;
+            departureTime?: string;
         }>({
-            query: ({ route, departureTime }) => ({
-                url: `/routes/weather-forecast${departureTime ? `?departureTime=${departureTime}` : ''}`,
-                method: 'POST',
-                body: route,
-            }),
+            query: ({ route, departureTime }) => {
+                const params = departureTime ? `?departureTime=${encodeURIComponent(departureTime)}` : '';
+                return {
+                    url: `/routes/weather-forecast${params}`,
+                    method: 'POST',
+                    body: route,
+                };
+            },
         }),
 
-        // Погодные предупреждения - mutation для POST
-        getWeatherHazards: builder.mutation<WeatherHazardWarning[], {
-            route: RouteResponse
-            departureTime?: string
+        // === Погодные предупреждения ===
+        getWeatherHazards: builder.mutation<WeatherHazardWarningDto[], {
+            route: RouteResponseDto;
+            departureTime?: string;
         }>({
-            query: ({ route, departureTime }) => ({
-                url: `/routes/weather-hazards${departureTime ? `?departureTime=${departureTime}` : ''}`,
-                method: 'POST',
-                body: route,
-            }),
+            query: ({ route, departureTime }) => {
+                const params = departureTime ? `?departureTime=${encodeURIComponent(departureTime)}` : '';
+                return {
+                    url: `/routes/weather-hazards${params}`,
+                    method: 'POST',
+                    body: route,
+                };
+            },
         }),
     }),
-})
+});
 
+// === Экспорт хуков ===
 export const {
+    // CRUD операции
     useGetRoutesQuery,
     useGetRouteQuery,
     useCreateRouteMutation,
     useUpdateRouteMutation,
     useDeleteRouteMutation,
-    useCalculateRouteMutation, // Правильное название для mutation
+    
+    // Расчет маршрутов
+    useCalculateRouteMutation,
     usePlanRouteQuery,
     usePlanRouteByNamesQuery,
+    
+    // Поиск и геокодирование
     useFindPlaceQuery,
+    
+    // Погода
     useGetRouteWeatherForecastMutation,
     useGetWeatherHazardsMutation,
-} = routesSlice
+} = routesSlice;
