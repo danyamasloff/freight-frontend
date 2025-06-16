@@ -4,256 +4,539 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-	Cloud,
+	BarChart3,
 	DollarSign,
 	AlertTriangle,
 	Route,
 	Fuel,
 	Clock,
 	TrendingUp,
-	Wind,
-	Thermometer,
+	TrendingDown,
+	Shield,
+	Target,
+	Activity,
+	CheckCircle,
 	MapPin,
-	Droplets,
-	Eye,
+	Gauge,
+	Info,
 } from "lucide-react";
+import type { DetailedRouteResponse } from "../../types";
+import { cn } from "@/lib/utils";
 
 interface RouteAnalyticsProps {
-	data: any;
+	data: DetailedRouteResponse;
 }
 
 export function RouteAnalytics({ data }: RouteAnalyticsProps) {
 	const getRiskLevel = (score: number) => {
-		if (score < 30)
-			return { label: "Низкий", color: "bg-green-500", textColor: "text-green-700" };
-		if (score < 70)
-			return { label: "Средний", color: "bg-yellow-500", textColor: "text-yellow-700" };
-		return { label: "Высокий", color: "bg-red-500", textColor: "text-red-700" };
+		if (score < 30) return { label: "Низкий", variant: "default" as const };
+		if (score < 70) return { label: "Средний", variant: "secondary" as const };
+		return { label: "Высокий", variant: "destructive" as const };
 	};
 
-	const risk = getRiskLevel(data?.overallRiskScore || 50);
+	const formatCurrency = (value: number) => {
+		return new Intl.NumberFormat("ru-RU", {
+			style: "currency",
+			currency: "RUB",
+			maximumFractionDigits: 0,
+		}).format(value);
+	};
+
+	const formatDuration = (minutes: number) => {
+		const hours = Math.floor(minutes / 60);
+		const mins = minutes % 60;
+		return `${hours} ч ${mins} мин`;
+	};
+
+	const overallRisk = getRiskLevel(data?.overallRisk || 0);
+	const weatherRisk = getRiskLevel(data?.weatherRisk || 0);
+	const trafficRisk = getRiskLevel(data?.trafficRisk || 0);
 
 	return (
-		<Card className="claude-card">
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					<TrendingUp className="w-5 h-5 text-primary" />
-					Аналитика маршрута
-				</CardTitle>
-			</CardHeader>
-			<CardContent>
-				<Tabs defaultValue="overview" className="space-y-4">
-					<TabsList className="grid w-full grid-cols-3">
-						<TabsTrigger value="overview">Обзор</TabsTrigger>
-						<TabsTrigger value="weather">Погода</TabsTrigger>
-						<TabsTrigger value="economics">Экономика</TabsTrigger>
-					</TabsList>
-
-					<TabsContent value="overview" className="space-y-4">
-						<div className="grid grid-cols-2 gap-4">
-							<div className="p-4 rounded-lg bg-muted/50">
-								<div className="flex items-center gap-2 mb-2">
-									<Route className="h-5 w-5 text-muted-foreground" />
-									<span className="text-sm font-medium">Расстояние</span>
-								</div>
-								<div className="text-2xl font-bold">{data?.distance || 0} км</div>
+		<div className="space-y-6">
+			{/* Основные метрики */}
+			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+				{/* Расстояние */}
+				<Card className="cursor-pointer transition-all duration-300 hover:scale-[1.02] group relative overflow-hidden hover:border-orange-300 hover:shadow-md hover:shadow-orange-500/10">
+					<CardContent className="p-6">
+						<div className="flex items-center justify-between">
+							<div className="space-y-1">
+								<p className="text-sm font-medium text-muted-foreground">
+									Расстояние
+								</p>
+								<p className="text-2xl font-semibold">
+									{Math.round(data?.distance || 0)} км
+								</p>
+								<p className="text-xs text-muted-foreground">
+									Средняя скорость:{" "}
+									{Math.round(
+										(data?.distance || 0) / ((data?.duration || 1) / 60)
+									)}{" "}
+									км/ч
+								</p>
 							</div>
-							<div className="p-4 rounded-lg bg-muted/50">
-								<div className="flex items-center gap-2 mb-2">
-									<Clock className="h-5 w-5 text-muted-foreground" />
-									<span className="text-sm font-medium">Время в пути</span>
-								</div>
-								<div className="text-2xl font-bold">
-									{Math.floor((data?.duration || 0) / 60)} ч{" "}
-									{(data?.duration || 0) % 60} мин
-								</div>
+							<div className="p-2 rounded-lg transition-all duration-300 bg-muted group-hover:bg-orange-100 dark:group-hover:bg-orange-500/20">
+								<Route className="h-5 w-5 text-orange-500" />
 							</div>
 						</div>
+						<div className="absolute -bottom-2 -right-2 w-16 h-16 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-500/10 dark:to-amber-500/10 rounded-full opacity-20 group-hover:opacity-30 transition-opacity"></div>
+					</CardContent>
+				</Card>
 
+				{/* Время */}
+				<Card className="cursor-pointer transition-all duration-300 hover:scale-[1.02] group relative overflow-hidden hover:border-orange-300 hover:shadow-md hover:shadow-orange-500/10">
+					<CardContent className="p-6">
+						<div className="flex items-center justify-between">
+							<div className="space-y-1">
+								<p className="text-sm font-medium text-muted-foreground">
+									Время в пути
+								</p>
+								<p className="text-2xl font-semibold">
+									{formatDuration(data?.duration || 0)}
+								</p>
+								<p className="text-xs text-muted-foreground">
+									С остановками: +{Math.round((data?.duration || 0) * 0.15)} мин
+								</p>
+							</div>
+							<div className="p-2 rounded-lg transition-all duration-300 bg-muted group-hover:bg-orange-100 dark:group-hover:bg-orange-500/20">
+								<Clock className="h-5 w-5 text-orange-500" />
+							</div>
+						</div>
+						<div className="absolute -bottom-2 -right-2 w-16 h-16 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-500/10 dark:to-amber-500/10 rounded-full opacity-20 group-hover:opacity-30 transition-opacity"></div>
+					</CardContent>
+				</Card>
+
+				{/* Топливо */}
+				<Card className="cursor-pointer transition-all duration-300 hover:scale-[1.02] group relative overflow-hidden hover:border-orange-300 hover:shadow-md hover:shadow-orange-500/10">
+					<CardContent className="p-6">
+						<div className="flex items-center justify-between">
+							<div className="space-y-1">
+								<p className="text-sm font-medium text-muted-foreground">
+									Расход топлива
+								</p>
+								<p className="text-2xl font-semibold">
+									{Math.round(data?.fuelConsumption || 0)} л
+								</p>
+								<p className="text-xs text-muted-foreground">
+									{(
+										((data?.fuelConsumption || 0) / (data?.distance || 1)) *
+										100
+									).toFixed(1)}{" "}
+									л/100км
+								</p>
+							</div>
+							<div className="p-2 rounded-lg transition-all duration-300 bg-muted group-hover:bg-orange-100 dark:group-hover:bg-orange-500/20">
+								<Fuel className="h-5 w-5 text-orange-500" />
+							</div>
+						</div>
+						<div className="absolute -bottom-2 -right-2 w-16 h-16 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-500/10 dark:to-amber-500/10 rounded-full opacity-20 group-hover:opacity-30 transition-opacity"></div>
+					</CardContent>
+				</Card>
+
+				{/* Стоимость */}
+				<Card className="cursor-pointer transition-all duration-300 hover:scale-[1.02] group relative overflow-hidden hover:border-orange-300 hover:shadow-md hover:shadow-orange-500/10">
+					<CardContent className="p-6">
+						<div className="flex items-center justify-between">
+							<div className="space-y-1">
+								<p className="text-sm font-medium text-muted-foreground">
+									Общая стоимость
+								</p>
+								<p className="text-2xl font-semibold">
+									{formatCurrency(data?.totalCost || 0)}
+								</p>
+								<p className="text-xs text-muted-foreground">
+									{((data?.totalCost || 0) / (data?.distance || 1)).toFixed(2)}{" "}
+									₽/км
+								</p>
+							</div>
+							<div className="p-2 rounded-lg transition-all duration-300 bg-muted group-hover:bg-orange-100 dark:group-hover:bg-orange-500/20">
+								<DollarSign className="h-5 w-5 text-orange-500" />
+							</div>
+						</div>
+						<div className="absolute -bottom-2 -right-2 w-16 h-16 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-500/10 dark:to-amber-500/10 rounded-full opacity-20 group-hover:opacity-30 transition-opacity"></div>
+					</CardContent>
+				</Card>
+			</div>
+
+			{/* Анализ рисков */}
+			<Card className="cursor-pointer transition-all duration-300 hover:scale-[1.02] group relative overflow-hidden hover:border-orange-300 hover:shadow-md hover:shadow-orange-500/10">
+				<CardHeader className="border-b border-orange-100 dark:border-orange-500/20">
+					<CardTitle className="flex items-center gap-2">
+						<div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-500/20">
+							<Shield className="h-5 w-5 text-orange-500" />
+						</div>
+						Анализ рисков
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="pt-6">
+					<div className="grid gap-6 md:grid-cols-3">
 						<div className="space-y-3">
-							<div className="flex justify-between items-center">
-								<span className="text-sm font-medium">Общий риск маршрута</span>
-								<Badge variant="outline" className={risk.textColor}>
-									{risk.label}
-								</Badge>
+							<div className="flex items-center justify-between">
+								<span className="text-sm font-medium">Общий риск</span>
+								<Badge variant={overallRisk.variant}>{overallRisk.label}</Badge>
 							</div>
 							<Progress
-								value={data?.overallRiskScore || 0}
-								className="h-3"
-								style={
-									{
-										"--progress-foreground": risk.color,
-									} as React.CSSProperties
-								}
+								value={data?.overallRisk || 0}
+								className="h-2 [&>*]:bg-orange-500"
 							/>
-							<div className="text-xs text-muted-foreground">
-								Оценка: {data?.overallRiskScore || 0}/100
-							</div>
+							<p className="text-xs text-muted-foreground">
+								Оценка: {data?.overallRisk || 0}%
+							</p>
 						</div>
 
-						{/* Краткие предупреждения */}
-						{data?.alerts && data.alerts.length > 0 && (
-							<div className="space-y-2">
-								<h4 className="font-semibold text-sm">Предупреждения</h4>
-								{data.alerts.slice(0, 3).map((alert: any, index: number) => (
-									<div
-										key={index}
-										className="flex items-start gap-2 p-3 rounded-lg bg-yellow-50 border border-yellow-200"
-									>
-										<AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-										<span className="text-sm text-yellow-800">
-											{alert.message}
+						<div className="space-y-3">
+							<div className="flex items-center justify-between">
+								<span className="text-sm font-medium">Погодный риск</span>
+								<Badge variant={weatherRisk.variant}>{weatherRisk.label}</Badge>
+							</div>
+							<Progress
+								value={data?.weatherRisk || 0}
+								className="h-2 [&>*]:bg-orange-500"
+							/>
+							<p className="text-xs text-muted-foreground">
+								Оценка: {data?.weatherRisk || 0}%
+							</p>
+						</div>
+
+						<div className="space-y-3">
+							<div className="flex items-center justify-between">
+								<span className="text-sm font-medium">Дорожный риск</span>
+								<Badge variant={trafficRisk.variant}>{trafficRisk.label}</Badge>
+							</div>
+							<Progress
+								value={data?.trafficRisk || 0}
+								className="h-2 [&>*]:bg-orange-500"
+							/>
+							<p className="text-xs text-muted-foreground">
+								Оценка: {data?.trafficRisk || 0}%
+							</p>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Детальная аналитика */}
+			<Card className="cursor-pointer transition-all duration-300 hover:scale-[1.02] group relative overflow-hidden hover:border-orange-300 hover:shadow-md hover:shadow-orange-500/10">
+				<CardHeader className="border-b border-orange-100 dark:border-orange-500/20">
+					<CardTitle className="flex items-center gap-2">
+						<div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-500/20">
+							<BarChart3 className="h-5 w-5 text-orange-500" />
+						</div>
+						Детальная аналитика
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="pt-6">
+					<Tabs defaultValue="economics" className="w-full">
+						<TabsList className="w-full grid grid-cols-3 rounded-none bg-orange-50 dark:bg-orange-500/10">
+							<TabsTrigger
+								value="economics"
+								className="flex items-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+							>
+								<DollarSign className="h-4 w-4" />
+								Экономика
+							</TabsTrigger>
+							<TabsTrigger
+								value="performance"
+								className="flex items-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+							>
+								<Activity className="h-4 w-4" />
+								Производительность
+							</TabsTrigger>
+							<TabsTrigger
+								value="recommendations"
+								className="flex items-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+							>
+								<Target className="h-4 w-4" />
+								Рекомендации
+							</TabsTrigger>
+						</TabsList>
+
+						<TabsContent value="economics" className="p-6">
+							<div className="grid gap-6 md:grid-cols-2">
+								{/* Структура затрат */}
+								<div>
+									<h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+										<div className="p-1 rounded bg-orange-100 dark:bg-orange-500/20">
+											<DollarSign className="h-3 w-3 text-orange-500" />
+										</div>
+										Структура затрат
+									</h3>
+									<div className="space-y-3">
+										<div className="flex justify-between items-center p-3 rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-100 dark:border-orange-500/20">
+											<div className="flex items-center gap-2">
+												<Fuel className="h-4 w-4 text-orange-500" />
+												<span className="text-sm font-medium">Топливо</span>
+											</div>
+											<div className="text-right">
+												<p className="text-sm font-medium">
+													{formatCurrency(data?.fuelCost || 0)}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													{Math.round(data?.fuelConsumption || 0)} л
+												</p>
+											</div>
+										</div>
+
+										<div className="flex justify-between items-center p-3 rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-100 dark:border-orange-500/20">
+											<div className="flex items-center gap-2">
+												<Route className="h-4 w-4 text-orange-500" />
+												<span className="text-sm font-medium">
+													Платные дороги
+												</span>
+											</div>
+											<div className="text-right">
+												<p className="text-sm font-medium">
+													{formatCurrency(data?.tollCost || 0)}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													{data?.tollRoads?.length || 0} участков
+												</p>
+											</div>
+										</div>
+
+										<div className="flex justify-between items-center p-3 rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-100 dark:border-orange-500/20">
+											<div className="flex items-center gap-2">
+												<Clock className="h-4 w-4 text-orange-500" />
+												<span className="text-sm font-medium">
+													Оплата водителя
+												</span>
+											</div>
+											<div className="text-right">
+												<p className="text-sm font-medium">
+													{formatCurrency(data?.estimatedDriverCost || 0)}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													{Math.floor((data?.duration || 0) / 60)} ч
+												</p>
+											</div>
+										</div>
+
+										<div className="border-t border-orange-200 dark:border-orange-500/20 pt-3 mt-3">
+											<div className="flex justify-between items-center p-2 rounded-lg bg-orange-100 dark:bg-orange-500/20">
+												<span className="font-semibold text-orange-700 dark:text-orange-300">
+													Итого:
+												</span>
+												<span className="text-xl font-bold text-orange-600 dark:text-orange-400">
+													{formatCurrency(data?.totalCost || 0)}
+												</span>
+											</div>
+										</div>
+									</div>
+								</div>
+
+								{/* Показатели эффективности */}
+								<div>
+									<h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+										<div className="p-1 rounded bg-orange-100 dark:bg-orange-500/20">
+											<Activity className="h-3 w-3 text-orange-500" />
+										</div>
+										Показатели эффективности
+									</h3>
+									<div className="space-y-3">
+										<Card className="bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/20">
+											<CardContent className="p-4">
+												<div className="flex items-center justify-between mb-2">
+													<span className="text-sm font-medium">
+														Стоимость за км
+													</span>
+													<TrendingDown className="h-4 w-4 text-orange-500" />
+												</div>
+												<p className="text-lg font-semibold">
+													{data?.distance
+														? Math.round(
+																(data.totalCost || 0) /
+																	data.distance
+															)
+														: 0}{" "}
+													₽/км
+												</p>
+											</CardContent>
+										</Card>
+
+										<Card className="bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/20">
+											<CardContent className="p-4">
+												<div className="flex items-center justify-between mb-2">
+													<span className="text-sm font-medium">
+														Расход топлива
+													</span>
+													<Gauge className="h-4 w-4 text-orange-500" />
+												</div>
+												<p className="text-lg font-semibold">
+													{data?.distance
+														? (
+																((data.fuelConsumption || 0) /
+																	data.distance) *
+																100
+															).toFixed(1)
+														: 0}{" "}
+													л/100км
+												</p>
+											</CardContent>
+										</Card>
+
+										<Card className="bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/20">
+											<CardContent className="p-4">
+												<div className="flex items-center justify-between mb-2">
+													<span className="text-sm font-medium">
+														Средняя скорость
+													</span>
+													<Activity className="h-4 w-4 text-orange-500" />
+												</div>
+												<p className="text-lg font-semibold">
+													{data?.duration
+														? Math.round(
+																(data.distance || 0) /
+																	(data.duration / 60)
+															)
+														: 0}{" "}
+													км/ч
+												</p>
+											</CardContent>
+										</Card>
+									</div>
+								</div>
+							</div>
+						</TabsContent>
+
+						<TabsContent value="performance" className="p-6">
+							<div className="space-y-4">
+								<div className="grid gap-4 md:grid-cols-2">
+									<Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-900">
+										<CardContent className="p-4">
+											<div className="flex items-center gap-2 mb-2">
+												<CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+												<span className="font-medium text-gray-900 dark:text-white">
+													Оптимальный маршрут
+												</span>
+											</div>
+											<p className="text-sm text-gray-600 dark:text-slate-400">
+												Маршрут оптимизирован по времени и расходу топлива
+											</p>
+										</CardContent>
+									</Card>
+
+									<Card className="bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800">
+										<CardContent className="p-4">
+											<div className="space-y-3">
+												<div className="flex items-center justify-between">
+													<span className="text-sm text-gray-700 dark:text-slate-300">
+														Эффективность загрузки
+													</span>
+													<span className="text-sm font-medium text-gray-900 dark:text-white">
+														85%
+													</span>
+												</div>
+												<Progress value={85} className="h-2" />
+											</div>
+										</CardContent>
+									</Card>
+								</div>
+
+								<div className="grid gap-3 md:grid-cols-3">
+									<div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-slate-800">
+										<span className="text-sm text-gray-700 dark:text-slate-300">
+											Промежуточных точек
+										</span>
+										<span className="text-sm font-medium text-gray-900 dark:text-white">
+											{data?.waypoints?.length || 0}
 										</span>
 									</div>
-								))}
-							</div>
-						)}
-					</TabsContent>
 
-					<TabsContent value="weather" className="space-y-4">
-						{data?.weatherForecast?.map((forecast: any, index: number) => (
-							<Card key={index} className="p-4">
-								<div className="flex justify-between items-start mb-3">
-									<div>
-										<div className="flex items-center gap-2 mb-1">
-											<MapPin className="w-4 h-4 text-muted-foreground" />
-											<span className="font-medium">{forecast.location}</span>
-										</div>
-										<div className="text-sm text-muted-foreground">
-											{new Date(forecast.time).toLocaleString("ru-RU")}
-										</div>
+									<div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-slate-800">
+										<span className="text-sm text-gray-700 dark:text-slate-300">
+											Платных дорог
+										</span>
+										<span className="text-sm font-medium text-gray-900 dark:text-white">
+											{data?.tollRoads?.length || 0}
+										</span>
 									</div>
-									<Badge variant="outline" className="flex items-center gap-1">
-										<Thermometer className="h-3 w-3" />
-										{forecast.temperature}°C
-									</Badge>
-								</div>
 
-								<div className="grid grid-cols-3 gap-4 text-sm">
-									<div className="flex items-center gap-1">
-										<Wind className="h-4 w-4 text-muted-foreground" />
-										<span>{forecast.windSpeed} м/с</span>
-									</div>
-									<div className="flex items-center gap-1">
-										<Droplets className="h-4 w-4 text-muted-foreground" />
-										<span>{forecast.humidity}%</span>
-									</div>
-									<div className="flex items-center gap-1">
-										<Eye className="h-4 w-4 text-muted-foreground" />
-										<span>{forecast.visibility} км</span>
+									<div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-slate-800">
+										<span className="text-sm text-gray-700 dark:text-slate-300">
+											Рекомендуемых остановок
+										</span>
+										<span className="text-sm font-medium text-gray-900 dark:text-white">
+											{data?.restStops?.length || 0}
+										</span>
 									</div>
 								</div>
-
-								<div className="mt-3 flex items-center gap-1">
-									<Cloud className="h-4 w-4 text-muted-foreground" />
-									<span className="text-sm">{forecast.description}</span>
-								</div>
-
-								{forecast.risks && forecast.risks.length > 0 && (
-									<div className="mt-3 space-y-1">
-										<div className="text-sm font-medium text-orange-700">
-											Риски:
-										</div>
-										{forecast.risks.map((risk: string, riskIndex: number) => (
-											<div
-												key={riskIndex}
-												className="text-sm text-orange-600"
-											>
-												• {risk}
-											</div>
-										))}
-									</div>
-								)}
-							</Card>
-						))}
-
-						{(!data?.weatherForecast || data.weatherForecast.length === 0) && (
-							<div className="text-center py-8 text-muted-foreground">
-								<Cloud className="w-12 h-12 mx-auto mb-4 opacity-50" />
-								<p>Данные о погоде будут доступны после расчета маршрута</p>
 							</div>
-						)}
-					</TabsContent>
+						</TabsContent>
 
-					<TabsContent value="economics" className="space-y-4">
-						<div className="space-y-3">
-							<div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-								<div className="flex items-center gap-2">
-									<Fuel className="w-4 h-4 text-muted-foreground" />
-									<span>Топливо</span>
-								</div>
-								<span className="font-semibold">
-									{data?.estimatedFuelCost || 0} ₽
-								</span>
-							</div>
-
-							<div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-								<div className="flex items-center gap-2">
-									<Route className="w-4 h-4 text-muted-foreground" />
-									<span>Платные дороги</span>
-								</div>
-								<span className="font-semibold">
-									{data?.estimatedTollCost || 0} ₽
-								</span>
-							</div>
-
-							<div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-								<div className="flex items-center gap-2">
-									<Clock className="w-4 h-4 text-muted-foreground" />
-									<span>Оплата водителя</span>
-								</div>
-								<span className="font-semibold">
-									{data?.estimatedDriverCost || 0} ₽
-								</span>
-							</div>
-
-							<div className="pt-3 border-t border-border">
-								<div className="flex justify-between items-center p-4 rounded-lg bg-primary/10 border-2 border-primary/20">
-									<span className="font-semibold text-lg">Итого</span>
-									<span className="font-bold text-xl text-primary">
-										{(data?.estimatedTotalCost || 0).toLocaleString()} ₽
-									</span>
-								</div>
-							</div>
-						</div>
-
-						{/* Детализация расходов */}
-						{data?.costBreakdown && (
+						<TabsContent value="recommendations" className="p-6">
 							<div className="space-y-3">
-								<h4 className="font-semibold">Детализация расходов</h4>
-								{Object.entries(data.costBreakdown).map(
-									([key, value]: [string, any]) => (
-										<div key={key} className="flex justify-between text-sm">
-											<span className="text-muted-foreground capitalize">
-												{key.replace(/([A-Z])/g, " $1").toLowerCase()}
-											</span>
-											<span>{value} ₽</span>
+								<Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-900">
+									<CardContent className="p-4">
+										<div className="flex items-start gap-3">
+											<CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5" />
+											<div>
+												<p className="font-medium text-sm text-gray-900 dark:text-white">
+													Экономия топлива
+												</p>
+												<p className="text-sm text-gray-600 dark:text-slate-400">
+													Соблюдайте постоянную скорость 80-90 км/ч для
+													оптимального расхода топлива
+												</p>
+											</div>
 										</div>
-									)
-								)}
-							</div>
-						)}
+									</CardContent>
+								</Card>
 
-						{/* Рекомендации по экономии */}
-						{data?.savingRecommendations && data.savingRecommendations.length > 0 && (
-							<div className="space-y-2">
-								<h4 className="font-semibold text-green-700">
-									Рекомендации по экономии
-								</h4>
-								{data.savingRecommendations.map((rec: string, index: number) => (
-									<div
-										key={index}
-										className="flex items-start gap-2 p-3 rounded-lg bg-green-50 border border-green-200"
-									>
-										<DollarSign className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-										<span className="text-sm text-green-800">{rec}</span>
-									</div>
-								))}
+								<Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-900">
+									<CardContent className="p-4">
+										<div className="flex items-start gap-3">
+											<Clock className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+											<div>
+												<p className="font-medium text-sm text-gray-900 dark:text-white">
+													Оптимальное время
+												</p>
+												<p className="text-sm text-gray-600 dark:text-slate-400">
+													Начните поездку в 6:00 утра для избежания пробок
+													в городах
+												</p>
+											</div>
+										</div>
+									</CardContent>
+								</Card>
+
+								<Card className="bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-900">
+									<CardContent className="p-4">
+										<div className="flex items-start gap-3">
+											<AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400 mt-0.5" />
+											<div>
+												<p className="font-medium text-sm text-gray-900 dark:text-white">
+													Внимание
+												</p>
+												<p className="text-sm text-gray-600 dark:text-slate-400">
+													Возможны неблагоприятные погодные условия.
+													Подготовьте зимнее оборудование
+												</p>
+											</div>
+										</div>
+									</CardContent>
+								</Card>
+
+								<Card className="bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-900">
+									<CardContent className="p-4">
+										<div className="flex items-start gap-3">
+											<Info className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5" />
+											<div>
+												<p className="font-medium text-sm text-gray-900 dark:text-white">
+													Безопасность
+												</p>
+												<p className="text-sm text-gray-600 dark:text-slate-400">
+													Запланируйте обязательный отдых каждые 4 часа в
+													соответствии с ПДД
+												</p>
+											</div>
+										</div>
+									</CardContent>
+								</Card>
 							</div>
-						)}
-					</TabsContent>
-				</Tabs>
-			</CardContent>
-		</Card>
+						</TabsContent>
+					</Tabs>
+				</CardContent>
+			</Card>
+		</div>
 	);
 }

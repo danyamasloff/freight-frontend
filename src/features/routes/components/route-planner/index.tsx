@@ -1,42 +1,73 @@
+// freight-frontend/src/features/routes/components/route-planner/index.tsx
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { RouteForm } from "./route-form";
 import { RouteMap } from "./route-map";
 import { RouteAnalytics } from "./route-analytics";
-import { PlanningGuide } from "./planning-guide";
 import { WeatherWidget } from "./weather-widget";
 import { useCalculateRouteMutation } from "@/shared/api/routesSlice";
-import { toast } from "sonner";
-import { MapPin, Route, BarChart3, Cloud, Navigation, Sparkles } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { MapPin, Route, BarChart3, Cloud, Navigation } from "lucide-react";
+import type { DetailedRouteResponse, RouteFormData } from "../../types";
 
 export function RoutePlanner() {
-	const [routeData, setRouteData] = useState<any>(null);
+	const [routeData, setRouteData] = useState<DetailedRouteResponse | null>(null);
 	const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number } | null>(
 		null
 	);
+	const [activeTab, setActiveTab] = useState("planning");
+	const { toast } = useToast();
+
 	const [calculateRoute, { isLoading }] = useCalculateRouteMutation();
 
-	const handleCalculateRoute = async (formData: any) => {
+	const handleCalculateRoute = async (formData: RouteFormData) => {
 		try {
 			const response = await calculateRoute({
-				startLat: formData.startLat,
-				startLon: formData.startLon,
-				endLat: formData.endLat,
-				endLon: formData.endLon,
-				vehicleId: formData.vehicleId,
-				driverId: formData.driverId,
+				startLat: formData.startLat || 0,
+				startLon: formData.startLon || 0,
+				endLat: formData.endLat || 0,
+				endLon: formData.endLon || 0,
+				vehicleId: formData.vehicleId ? parseInt(formData.vehicleId) : undefined,
+				driverId: formData.driverId ? parseInt(formData.driverId) : undefined,
 				departureTime: formData.departureTime,
 				considerWeather: true,
 				considerTraffic: true,
 			}).unwrap();
 
-			setRouteData(response);
-			toast.success("Маршрут успешно рассчитан");
-		} catch (error) {
-			toast.error("Ошибка при расчете маршрута");
+			// Создаем копию объекта и округляем расстояние до целого числа
+			const processedResponse = {
+				...response,
+				distance: response.distance ? Math.round(response.distance) : response.distance,
+				// Добавляем координаты для корректного отображения карты
+				startLat: formData.startLat,
+				startLon: formData.startLon,
+				endLat: formData.endLat,
+				endLon: formData.endLon,
+			};
+
+			setRouteData(processedResponse as DetailedRouteResponse);
+
+			// Автоматически переключаемся на карту после успешного расчета
+			setActiveTab("map");
+
+			toast({
+				title: "Маршрут рассчитан",
+				description: `Расстояние: ${processedResponse.distance} км, время: ${Math.floor((processedResponse.duration || 0) / 60)} ч. Посмотрите на карте!`,
+				duration: 5000,
+			});
+		} catch (error: any) {
+			const errorMessage =
+				error?.data?.message || error?.message || "Не удалось рассчитать маршрут";
+			toast({
+				title: "Ошибка расчета маршрута",
+				description: errorMessage,
+				variant: "destructive",
+				duration: 7000,
+			});
+			console.error("Route calculation error:", error);
 		}
 	};
 
@@ -49,182 +80,152 @@ export function RoutePlanner() {
 						lon: position.coords.longitude,
 					};
 					setCurrentLocation(location);
-					toast.success("Местоположение определено");
+					toast({
+						title: "Местоположение определено",
+						description: `Широта: ${location.lat.toFixed(4)}, Долгота: ${location.lon.toFixed(4)}`,
+					});
 				},
 				(error) => {
-					toast.error("Не удалось определить местоположение");
+					toast({
+						title: "Ошибка",
+						description: "Не удалось определить местоположение",
+						variant: "destructive",
+					});
 					console.error("Geolocation error:", error);
 				}
 			);
 		} else {
-			toast.error("Геолокация не поддерживается браузером");
+			toast({
+				title: "Ошибка",
+				description: "Геолокация не поддерживается браузером",
+				variant: "destructive",
+			});
 		}
 	};
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-background to-muted/30">
-			<div className="container mx-auto p-6 space-y-8">
-				{/* Заголовок с улучшенным дизайном */}
-				<div className="text-center space-y-4">
-					<div className="flex items-center justify-center gap-3 mb-4">
-						<div className="p-3 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg">
-							<Route className="h-6 w-6" />
-						</div>
-						<h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 bg-clip-text text-transparent">
-							Планировщик маршрутов
-						</h1>
-						<Sparkles className="h-6 w-6 text-orange-500 animate-pulse" />
-					</div>
-					<p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-						Интеллектуальное планирование маршрутов с анализом погоды, дорожных условий
-						и экономической эффективности
-					</p>
-
-					{/* Кнопка определения местоположения */}
-					<div className="flex justify-center">
-						<Button
-							onClick={getCurrentLocation}
-							variant="outline"
-							className="flex items-center gap-2 hover:bg-orange-50 hover:border-orange-200 transition-colors"
-						>
-							<Navigation className="h-4 w-4" />
-							Определить местоположение
-							{currentLocation && (
-								<Badge variant="secondary" className="ml-2">
-									<MapPin className="h-3 w-3 mr-1" />
-									Найдено
-								</Badge>
-							)}
-						</Button>
+		<div className="container py-8">
+			<div className="space-y-6">
+				{/* Заголовок */}
+				<div className="flex items-center justify-between">
+					<div>
+						<h1 className="text-3xl font-bold">Планировщик маршрутов</h1>
+						<p className="text-muted-foreground">
+							Создание оптимальных маршрутов с учетом погодных условий и аналитикой
+						</p>
 					</div>
 				</div>
 
-				<PlanningGuide />
-
-				{/* Главный контент с вкладками */}
-				<Tabs defaultValue="planning" className="w-full">
-					<TabsList className="grid w-full grid-cols-4 mb-8">
-						<TabsTrigger value="planning" className="flex items-center gap-2">
-							<Route className="h-4 w-4" />
+				{/* Основной контент */}
+				<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+					<TabsList className="grid w-full grid-cols-4 bg-orange-50 dark:bg-orange-500/10">
+						<TabsTrigger
+							value="planning"
+							className="data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+						>
+							<Route className="h-4 w-4 mr-2" />
 							Планирование
 						</TabsTrigger>
-						<TabsTrigger value="map" className="flex items-center gap-2">
-							<MapPin className="h-4 w-4" />
+						<TabsTrigger
+							value="map"
+							className="data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+						>
+							<MapPin className="h-4 w-4 mr-2" />
 							Карта
 						</TabsTrigger>
 						<TabsTrigger
 							value="analytics"
-							className="flex items-center gap-2"
-							disabled={!routeData}
+							className="data-[state=active]:bg-orange-500 data-[state=active]:text-white"
 						>
-							<BarChart3 className="h-4 w-4" />
+							<BarChart3 className="h-4 w-4 mr-2" />
 							Аналитика
 						</TabsTrigger>
 						<TabsTrigger
 							value="weather"
-							className="flex items-center gap-2"
-							disabled={!routeData}
+							className="data-[state=active]:bg-orange-500 data-[state=active]:text-white"
 						>
-							<Cloud className="h-4 w-4" />
+							<Cloud className="h-4 w-4 mr-2" />
 							Погода
 						</TabsTrigger>
 					</TabsList>
 
+					{/* Планирование */}
 					<TabsContent value="planning" className="space-y-6">
-						<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-							<div className="lg:col-span-2">
-								<Card className="claude-card border-2 border-orange-100 shadow-lg">
-									<CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
-										<CardTitle className="flex items-center gap-2 text-orange-900">
-											<Route className="h-5 w-5" />
-											Параметры маршрута
-										</CardTitle>
-									</CardHeader>
-									<CardContent className="p-6">
-										<RouteForm
-											onSubmit={handleCalculateRoute}
-											isLoading={isLoading}
-											currentLocation={currentLocation}
-										/>
-									</CardContent>
-								</Card>
-							</div>
-
-							<div className="space-y-6">
-								{routeData && (
-									<Card className="claude-card border-2 border-green-100 shadow-lg">
-										<CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100">
-											<CardTitle className="flex items-center gap-2 text-green-900">
-												<BarChart3 className="h-5 w-5" />
-												Результат
-											</CardTitle>
-										</CardHeader>
-										<CardContent className="p-6">
-											<div className="space-y-3">
-												<div className="flex justify-between">
-													<span className="text-muted-foreground">
-														Расстояние:
-													</span>
-													<Badge variant="secondary">
-														{Math.round(routeData.distance || 0)} км
-													</Badge>
-												</div>
-												<div className="flex justify-between">
-													<span className="text-muted-foreground">
-														Время:
-													</span>
-													<Badge variant="secondary">
-														{Math.floor((routeData.duration || 0) / 60)}{" "}
-														ч {(routeData.duration || 0) % 60} мин
-													</Badge>
-												</div>
-												{routeData.estimatedFuelCost && (
-													<div className="flex justify-between">
-														<span className="text-muted-foreground">
-															Топливо:
-														</span>
-														<Badge variant="outline">
-															{routeData.estimatedFuelCost} ₽
-														</Badge>
-													</div>
-												)}
-											</div>
-										</CardContent>
-									</Card>
-								)}
-							</div>
-						</div>
-					</TabsContent>
-
-					<TabsContent value="map" className="space-y-6">
-						<Card className="claude-card border-2 border-blue-100 shadow-lg">
-							<CardHeader className="bg-gradient-to-r from-blue-50 to-sky-50 border-b border-blue-100">
-								<CardTitle className="flex items-center gap-2 text-blue-900">
-									<MapPin className="h-5 w-5" />
-									Интерактивная карта маршрута
+						<Card className="cursor-pointer transition-all duration-300 hover:scale-[1.02] group relative overflow-hidden hover:border-orange-300 hover:shadow-md hover:shadow-orange-500/10">
+							<CardHeader className="border-b border-orange-100 dark:border-orange-500/20">
+								<CardTitle className="flex items-center gap-2">
+									<div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-500/20">
+										<Route className="h-5 w-5 text-orange-500" />
+									</div>
+									Параметры маршрута
 								</CardTitle>
 							</CardHeader>
-							<CardContent className="p-0">
-								<RouteMap routeData={routeData} currentLocation={currentLocation} />
+							<CardContent className="pt-6">
+								<RouteForm
+									onSubmit={handleCalculateRoute}
+									isLoading={isLoading}
+									currentLocation={currentLocation}
+								/>
+								<div className="absolute -bottom-2 -right-2 w-16 h-16 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-500/10 dark:to-amber-500/10 rounded-full opacity-20 group-hover:opacity-30 transition-opacity"></div>
 							</CardContent>
 						</Card>
 					</TabsContent>
 
-					<TabsContent value="analytics" className="space-y-6">
-						{routeData && <RouteAnalytics data={routeData} />}
+					{/* Карта */}
+					<TabsContent value="map" className="space-y-6">
+						<RouteMap routeData={routeData} currentLocation={currentLocation} />
 					</TabsContent>
 
+					{/* Аналитика */}
+					<TabsContent value="analytics" className="space-y-6">
+						{routeData ? (
+							<RouteAnalytics data={routeData} />
+						) : (
+							<Card className="cursor-pointer transition-all duration-300 hover:scale-[1.02] group relative overflow-hidden hover:border-orange-300 hover:shadow-md hover:shadow-orange-500/10">
+								<CardContent className="flex flex-col items-center justify-center py-20">
+									<div className="p-4 rounded-full bg-orange-100 dark:bg-orange-500/20 mb-4">
+										<BarChart3 className="h-16 w-16 text-orange-500" />
+									</div>
+									<h3 className="text-xl font-semibold mb-2">
+										Аналитика маршрута
+									</h3>
+									<p className="text-muted-foreground text-center max-w-md">
+										Рассчитайте маршрут для получения детальной аналитики
+									</p>
+									<div className="absolute -bottom-2 -right-2 w-16 h-16 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-500/10 dark:to-amber-500/10 rounded-full opacity-20 group-hover:opacity-30 transition-opacity"></div>
+								</CardContent>
+							</Card>
+						)}
+					</TabsContent>
+
+					{/* Погода */}
 					<TabsContent value="weather" className="space-y-6">
-						{routeData && (
-							<Card className="claude-card border-2 border-purple-100 shadow-lg">
-								<CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 border-b border-purple-100">
-									<CardTitle className="flex items-center gap-2 text-purple-900">
-										<Cloud className="h-5 w-5" />
-										Прогноз погоды по маршруту
-									</CardTitle>
-								</CardHeader>
-								<CardContent className="p-6">
-									<WeatherWidget routeData={routeData} />
+						{routeData ? (
+							<WeatherWidget
+								startCoordinates={{
+									lat: routeData.startLat || 0,
+									lon: routeData.startLon || 0,
+								}}
+								endCoordinates={{
+									lat: routeData.endLat || 0,
+									lon: routeData.endLon || 0,
+								}}
+								departureTime={new Date()}
+								estimatedArrivalTime={
+									new Date(Date.now() + (routeData.duration || 0) * 60000)
+								}
+							/>
+						) : (
+							<Card className="cursor-pointer transition-all duration-300 hover:scale-[1.02] group relative overflow-hidden hover:border-orange-300 hover:shadow-md hover:shadow-orange-500/10">
+								<CardContent className="flex flex-col items-center justify-center py-20">
+									<div className="p-4 rounded-full bg-orange-100 dark:bg-orange-500/20 mb-4">
+										<Cloud className="h-16 w-16 text-orange-500" />
+									</div>
+									<h3 className="text-xl font-semibold mb-2">Прогноз погоды</h3>
+									<p className="text-muted-foreground text-center max-w-md">
+										Создайте маршрут для получения прогноза погоды
+									</p>
+									<div className="absolute -bottom-2 -right-2 w-16 h-16 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-500/10 dark:to-amber-500/10 rounded-full opacity-20 group-hover:opacity-30 transition-opacity"></div>
 								</CardContent>
 							</Card>
 						)}

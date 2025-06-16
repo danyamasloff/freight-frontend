@@ -1,323 +1,358 @@
-import React, { useRef, useEffect } from "react";
+// freight-frontend/src/features/routes/components/route-planner/route-map.tsx
+
+import React, { useState } from "react";
 import {
-	YMaps,
 	Map,
-	RoutePanel,
-	TrafficControl,
-	GeolocationControl,
-	ZoomControl,
 	Placemark,
 	Polyline,
+	withYMaps,
+	ZoomControl,
+	TypeSelector,
+	TrafficControl,
+	GeolocationControl,
+	RoutePanel,
 } from "@pbe/react-yandex-maps";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation, Layers, Maximize2 } from "lucide-react";
+import { MapPin, Maximize2, Minimize2, Route } from "lucide-react";
+import type { DetailedRouteResponse } from "../../types";
 
 interface RouteMapProps {
-	routeData?: any;
+	routeData: DetailedRouteResponse | null;
 	currentLocation?: { lat: number; lon: number } | null;
+	ymaps?: any;
 }
 
-export function RouteMap({ routeData, currentLocation }: RouteMapProps) {
-	const mapRef = useRef<any>(null);
+const RouteMapComponent: React.FC<RouteMapProps> = ({ routeData, currentLocation, ymaps }) => {
+	const [isFullscreen, setIsFullscreen] = useState(false);
 
-	const getMapCenter = () => {
-		if (routeData && routeData.startPoint && routeData.endPoint) {
-			// Центрируем карту между начальной и конечной точками
-			const centerLat = (routeData.startPoint.lat + routeData.endPoint.lat) / 2;
-			const centerLon = (routeData.startPoint.lon + routeData.endPoint.lon) / 2;
-			return [centerLat, centerLon];
-		} else if (currentLocation) {
+	// Определяем центр карты
+	const getMapCenter = (): [number, number] => {
+		if (routeData?.geometry && routeData.geometry.length > 0) {
+			return routeData.geometry[0] as [number, number];
+		}
+		if (routeData?.startLat && routeData?.startLon) {
+			return [routeData.startLat, routeData.startLon];
+		}
+		if (currentLocation) {
 			return [currentLocation.lat, currentLocation.lon];
 		}
-		// Дефолт - Москва
-		return [55.751244, 37.618423];
+		// Москва по умолчанию
+		return [55.7558, 37.6176];
 	};
 
-	const getMapZoom = () => {
-		if (routeData && routeData.startPoint && routeData.endPoint) {
-			// Автоматически подбираем зум в зависимости от расстояния
-			const distance = calculateDistance(
-				routeData.startPoint.lat,
-				routeData.startPoint.lon,
-				routeData.endPoint.lat,
-				routeData.endPoint.lon
-			);
-			if (distance < 10) return 12;
-			if (distance < 50) return 10;
-			if (distance < 200) return 8;
-			return 6;
+	// Определяем границы карты для автоматического масштабирования
+	const getMapBounds = (): [number, number][] | undefined => {
+		if (!routeData) return undefined;
+
+		const bounds: [number, number][] = [];
+
+		if (routeData.geometry && routeData.geometry.length > 0) {
+			routeData.geometry.forEach((coord) => {
+				bounds.push(coord as [number, number]);
+			});
+		} else if (
+			routeData.startLat &&
+			routeData.startLon &&
+			routeData.endLat &&
+			routeData.endLon
+		) {
+			bounds.push([routeData.startLat, routeData.startLon]);
+			bounds.push([routeData.endLat, routeData.endLon]);
 		}
-		return 10;
+
+		return bounds.length > 0 ? bounds : undefined;
 	};
 
-	const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-		const R = 6371;
-		const dLat = deg2rad(lat2 - lat1);
-		const dLon = deg2rad(lon2 - lon1);
-		const a =
-			Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-			Math.cos(deg2rad(lat1)) *
-				Math.cos(deg2rad(lat2)) *
-				Math.sin(dLon / 2) *
-				Math.sin(dLon / 2);
-		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-		return R * c;
+	const toggleFullscreen = () => {
+		setIsFullscreen(!isFullscreen);
 	};
 
-	const deg2rad = (deg: number): number => {
-		return deg * (Math.PI / 180);
+	const formatCurrency = (value: number) => {
+		return new Intl.NumberFormat("ru-RU", {
+			style: "currency",
+			currency: "RUB",
+			maximumFractionDigits: 0,
+		}).format(value);
 	};
 
-	const handleFullScreen = () => {
-		const mapElement = mapRef.current?.container?.getElement();
-		if (mapElement) {
-			if (mapElement.requestFullscreen) {
-				mapElement.requestFullscreen();
-			}
-		}
+	const formatDuration = (minutes: number) => {
+		const hours = Math.floor(minutes / 60);
+		const mins = minutes % 60;
+		return `${hours} ч ${mins} мин`;
 	};
 
 	return (
-		<div className="space-y-4">
-			{/* Заголовок карты с элементами управления */}
-			<div className="flex items-center justify-between p-4 border-b">
-				<div className="flex items-center gap-2">
-					<MapPin className="h-5 w-5 text-blue-500" />
-					<h3 className="font-semibold">Интерактивная карта</h3>
-					{routeData && (
-						<Badge variant="outline" className="ml-2">
-							{Math.round(routeData.distance || 0)} км
-						</Badge>
-					)}
-				</div>
-				<div className="flex gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleFullScreen}
-						className="flex items-center gap-1"
-					>
-						<Maximize2 className="h-4 w-4" />
-						Полный экран
-					</Button>
-				</div>
-			</div>
+		<div
+			className={`relative bg-slate-900 rounded-lg overflow-hidden border border-slate-700 ${
+				isFullscreen ? "fixed inset-0 z-50" : "h-[500px]"
+			}`}
+		>
+			{/* Map Container */}
+			<Map
+				defaultState={{
+					center: getMapCenter(),
+					zoom: routeData ? 10 : 9,
+				}}
+				options={{
+					suppressMapOpenBlock: true,
+					copyrightLogoVisible: false,
+					copyrightProvidersVisible: false,
+					copyrightUaVisible: false,
+				}}
+				width="100%"
+				height="100%"
+				style={{
+					minHeight: isFullscreen ? "100vh" : "500px",
+				}}
+			>
+				{/* Встроенные контролы Yandex Maps */}
+				<ZoomControl />
+				<TypeSelector />
+				<TrafficControl />
+				<GeolocationControl />
+				<RoutePanel />
 
-			{/* Карта */}
-			<div className="relative">
-				<YMaps
-					query={{
-						apikey: process.env.REACT_APP_YANDEX_MAPS_API_KEY,
-						lang: "ru_RU",
-					}}
-				>
-					<Map
-						ref={mapRef}
-						defaultState={{
-							center: getMapCenter(),
-							zoom: getMapZoom(),
-						}}
-						state={{
-							center: getMapCenter(),
-							zoom: getMapZoom(),
-						}}
-						width="100%"
-						height="500px"
-						className="rounded-lg overflow-hidden shadow-lg"
+				{/* Маршрут - линия */}
+				{routeData?.geometry && routeData.geometry.length > 0 && (
+					<Polyline
+						geometry={routeData.geometry}
 						options={{
-							suppressMapOpenBlock: true,
+							strokeColor: "#f97316",
+							strokeWidth: 6,
+							strokeOpacity: 0.9,
+							strokeStyle: "solid",
 						}}
-						modules={[
-							"control.ZoomControl",
-							"control.FullscreenControl",
-							"control.TrafficControl",
-						]}
-					>
-						{/* Элементы управления */}
-						<ZoomControl />
-						<TrafficControl />
-						<GeolocationControl />
+						properties={{
+							hintContent: "Маршрут",
+							balloonContent: `
+								<div style="color: #1e293b; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+									<div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
+										<strong style="color: #0f172a; font-size: 16px;">Информация о маршруте</strong>
+									</div>
+									<div style="display: grid; gap: 6px;">
+										<div style="display: flex; justify-content: space-between;">
+											<span style="color: #64748b;">Расстояние:</span>
+											<strong style="color: #0f172a;">${routeData.distance} км</strong>
+										</div>
+										<div style="display: flex; justify-content: space-between;">
+											<span style="color: #64748b;">Время:</span>
+											<strong style="color: #0f172a;">${formatDuration(routeData.duration || 0)}</strong>
+										</div>
+										<div style="display: flex; justify-content: space-between;">
+											<span style="color: #64748b;">Топливо:</span>
+											<strong style="color: #0f172a;">${(routeData.fuelConsumption || 0).toFixed(1)} л</strong>
+										</div>
+										<div style="display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; padding-top: 6px; margin-top: 6px;">
+											<span style="color: #64748b;">Стоимость:</span>
+											<strong style="color: #f97316; font-size: 16px;">${formatCurrency(routeData.totalCost || 0)}</strong>
+										</div>
+									</div>
+								</div>
+							`,
+						}}
+					/>
+				)}
 
-						{/* Текущее местоположение пользователя */}
-						{currentLocation && (
-							<Placemark
-								geometry={[currentLocation.lat, currentLocation.lon]}
-								properties={{
-									balloonContent: "<strong>Ваше местоположение</strong>",
-									hintContent: "Текущее местоположение",
-								}}
-								options={{
-									preset: "islands#blueCircleDotIconWithCaption",
-								}}
-							/>
-						)}
+				{/* Начальная точка */}
+				{routeData?.startLat && routeData?.startLon && (
+					<Placemark
+						geometry={[routeData.startLat, routeData.startLon]}
+						options={{
+							preset: "islands#greenDotIconWithCaption",
+						}}
+						properties={{
+							iconCaption: "А",
+							hintContent: "Начало маршрута",
+							balloonContent: `
+								<div style="color: #1e293b; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+									<div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
+										<strong style="color: #059669; font-size: 16px;">🚀 Точка отправления</strong>
+									</div>
+									<div style="color: #0f172a;">${routeData.startPoint || "Не указано"}</div>
+								</div>
+							`,
+						}}
+					/>
+				)}
 
-						{/* Маршрут - начальная точка */}
-						{routeData && routeData.startPoint && (
-							<Placemark
-								geometry={[routeData.startPoint.lat, routeData.startPoint.lon]}
-								properties={{
-									balloonContent: `<div class="p-2">
-										<strong class="text-green-600">🚀 Начало маршрута</strong><br/>
-										<span class="text-sm">${routeData.startAddress || "Точка отправления"}</span>
-									</div>`,
-									hintContent: "Начало маршрута",
-								}}
-								options={{
-									preset: "islands#greenDotIconWithCaption",
-								}}
-							/>
-						)}
+				{/* Конечная точка */}
+				{routeData?.endLat && routeData?.endLon && (
+					<Placemark
+						geometry={[routeData.endLat, routeData.endLon]}
+						options={{
+							preset: "islands#redDotIconWithCaption",
+						}}
+						properties={{
+							iconCaption: "Б",
+							hintContent: "Конец маршрута",
+							balloonContent: `
+								<div style="color: #1e293b; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+									<div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
+										<strong style="color: #dc2626; font-size: 16px;">🏁 Точка назначения</strong>
+									</div>
+									<div style="color: #0f172a;">${routeData.endPoint || "Не указано"}</div>
+								</div>
+							`,
+						}}
+					/>
+				)}
 
-						{/* Маршрут - конечная точка */}
-						{routeData && routeData.endPoint && (
-							<Placemark
-								geometry={[routeData.endPoint.lat, routeData.endPoint.lon]}
-								properties={{
-									balloonContent: `<div class="p-2">
-										<strong class="text-red-600">🏁 Конец маршрута</strong><br/>
-										<span class="text-sm">${routeData.endAddress || "Точка назначения"}</span>
-									</div>`,
-									hintContent: "Конец маршрута",
-								}}
-								options={{
-									preset: "islands#redDotIconWithCaption",
-								}}
-							/>
-						)}
+				{/* Промежуточные точки */}
+				{routeData?.waypoints?.map((waypoint, index) => (
+					<Placemark
+						key={`waypoint-${index}`}
+						geometry={[waypoint.lat, waypoint.lon]}
+						options={{
+							preset: "islands#blueDotIcon",
+						}}
+						properties={{
+							hintContent: `Промежуточная точка ${index + 1}`,
+							balloonContent: `
+								<div style="color: #1e293b; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+									<div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
+										<strong style="color: #2563eb; font-size: 16px;">📍 Промежуточная точка ${index + 1}</strong>
+									</div>
+									<div style="margin-bottom: 6px;">
+										<strong style="color: #0f172a;">${waypoint.address || `Координаты: ${waypoint.lat}, ${waypoint.lon}`}</strong>
+									</div>
+									${waypoint.stopType ? `<div style="color: #64748b;">Тип остановки: ${waypoint.stopType}</div>` : ""}
+									${waypoint.duration ? `<div style="color: #64748b;">Время стоянки: ${waypoint.duration} мин</div>` : ""}
+								</div>
+							`,
+						}}
+					/>
+				))}
 
-						{/* Линия маршрута */}
-						{routeData && routeData.geometry && (
-							<Polyline
-								geometry={routeData.geometry}
-								properties={{
-									balloonContent: `<div class="p-2">
-										<strong>📍 Маршрут</strong><br/>
-										<span class="text-sm">Расстояние: ${Math.round(routeData.distance || 0)} км</span><br/>
-										<span class="text-sm">Время: ${Math.floor((routeData.duration || 0) / 60)} ч ${(routeData.duration || 0) % 60} мин</span>
-									</div>`,
-								}}
-								options={{
-									strokeColor: "#FF8C00", // Оранжевый цвет в стиле Claude
-									strokeWidth: 5,
-									strokeOpacity: 0.8,
-									strokeStyle: "solid",
-								}}
-							/>
-						)}
+				{/* Остановки для отдыха */}
+				{routeData?.restStops?.map((restStop, index) => (
+					<Placemark
+						key={`rest-stop-${index}`}
+						geometry={restStop.coordinates}
+						options={{
+							preset: "islands#violetIcon",
+						}}
+						properties={{
+							hintContent: `Остановка для отдыха: ${restStop.location}`,
+							balloonContent: `
+								<div style="color: #1e293b; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+									<div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
+										<strong style="color: #7c3aed; font-size: 16px;">🛑 ${restStop.location}</strong>
+									</div>
+									<div style="margin-bottom: 8px;">
+										<div style="color: #64748b;">Тип: ${restStop.facilityType}</div>
+										<div style="color: #64748b;">Время от начала: ${formatDuration(restStop.timeFromStart)}</div>
+										<div style="color: #64748b;">Причина: ${restStop.reason}</div>
+									</div>
+									${
+										restStop.amenities && restStop.amenities.length > 0
+											? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0;">
+												<div style="color: #64748b; margin-bottom: 4px;">Удобства:</div>
+												<div style="color: #0f172a;">${restStop.amenities.join(", ")}</div>
+											</div>`
+											: ""
+									}
+								</div>
+							`,
+						}}
+					/>
+				))}
 
-						{/* Опасные участки на маршруте */}
-						{routeData &&
-							routeData.hazardPoints &&
-							routeData.hazardPoints.map((hazard: any, index: number) => (
-								<Placemark
-									key={`hazard-${index}`}
-									geometry={[hazard.lat, hazard.lon]}
-									properties={{
-										balloonContent: `<div class="p-2">
-										<strong class="text-amber-600">⚠️ Внимание</strong><br/>
-										<span class="text-sm">${hazard.description || "Опасный участок"}</span>
-									</div>`,
-										hintContent: "Опасный участок",
-									}}
-									options={{
-										preset: "islands#yellowCircleIcon",
-									}}
-								/>
-							))}
+				{/* Текущее местоположение */}
+				{currentLocation && (
+					<Placemark
+						geometry={[currentLocation.lat, currentLocation.lon]}
+						options={{
+							preset: "islands#blueSportCircleIcon",
+						}}
+						properties={{
+							hintContent: "Ваше местоположение",
+							balloonContent: `
+								<div style="color: #1e293b; padding: 8px;">
+									<strong>Ваше местоположение</strong><br>
+									Координаты: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)}
+								</div>
+							`,
+						}}
+					/>
+				)}
+			</Map>
 
-						{/* Остановки и заправки */}
-						{routeData &&
-							routeData.restStops &&
-							routeData.restStops.map((stop: any, index: number) => (
-								<Placemark
-									key={`stop-${index}`}
-									geometry={[stop.coordinates[1], stop.coordinates[0]]}
-									properties={{
-										balloonContent: `<div class="p-2">
-										<strong class="text-blue-600">⛽ ${stop.location}</strong><br/>
-										<span class="text-sm">${stop.reason}</span><br/>
-										<span class="text-xs text-gray-500">Рейтинг: ⭐ ${stop.rating || "Н/Д"}</span>
-									</div>`,
-										hintContent: stop.location,
-									}}
-									options={{
-										preset: "islands#blueGasIcon",
-									}}
-								/>
-							))}
-					</Map>
-				</YMaps>
+			{/* Route Info & Actions */}
+			<div className="absolute bottom-4 left-4 right-4">
+				<Card className="bg-slate-800/90 backdrop-blur-sm border-slate-700">
+					<div className="p-4">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-4">
+								{routeData ? (
+									<>
+										<div className="flex items-center gap-2">
+											<Route className="h-4 w-4 text-orange-400" />
+											<span className="text-white font-medium">
+												{routeData.distance} км
+											</span>
+										</div>
+										<div className="flex items-center gap-2">
+											<MapPin className="h-4 w-4 text-blue-400" />
+											<span className="text-slate-300">
+												{formatDuration(routeData.duration || 0)}
+											</span>
+										</div>
+										{routeData.fuelConsumption && (
+											<Badge
+												variant="outline"
+												className="border-orange-500/30 text-orange-300"
+											>
+												{routeData.fuelConsumption.toFixed(1)} л
+											</Badge>
+										)}
+									</>
+								) : (
+									<div className="flex items-center gap-2 text-slate-400">
+										<MapPin className="h-4 w-4" />
+										<span>Рассчитайте маршрут для отображения на карте</span>
+									</div>
+								)}
+							</div>
 
-				{/* Информационная панель поверх карты */}
-				{routeData && (
-					<div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg border">
-						<div className="space-y-2 text-sm">
 							<div className="flex items-center gap-2">
-								<Navigation className="h-4 w-4 text-blue-500" />
-								<span className="font-semibold">Информация о маршруте</span>
+								<Button
+									size="sm"
+									variant="ghost"
+									onClick={toggleFullscreen}
+									className="text-white hover:bg-slate-700"
+									title={isFullscreen ? "Свернуть" : "На весь экран"}
+								>
+									{isFullscreen ? (
+										<Minimize2 className="h-4 w-4" />
+									) : (
+										<Maximize2 className="h-4 w-4" />
+									)}
+								</Button>
 							</div>
-							<div className="grid grid-cols-2 gap-3">
-								<div>
-									<span className="text-muted-foreground">Расстояние:</span>
-									<div className="font-semibold text-orange-600">
-										{Math.round(routeData.distance || 0)} км
-									</div>
-								</div>
-								<div>
-									<span className="text-muted-foreground">Время:</span>
-									<div className="font-semibold text-blue-600">
-										{Math.floor((routeData.duration || 0) / 60)} ч{" "}
-										{(routeData.duration || 0) % 60} мин
-									</div>
-								</div>
-							</div>
-							{routeData.estimatedFuelCost && (
-								<div>
-									<span className="text-muted-foreground">Топливо:</span>
-									<div className="font-semibold text-green-600">
-										{routeData.estimatedFuelCost} ₽
-									</div>
-								</div>
-							)}
 						</div>
 					</div>
-				)}
-
-				{/* Индикатор загрузки */}
-				{!routeData && (
-					<div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
-						<div className="text-center space-y-2">
-							<MapPin className="h-8 w-8 text-muted-foreground mx-auto animate-pulse" />
-							<p className="text-muted-foreground">
-								Выберите маршрут для отображения на карте
-							</p>
-						</div>
-					</div>
-				)}
-			</div>
-
-			{/* Легенда */}
-			<div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-				<div className="flex items-center gap-1">
-					<div className="w-3 h-3 rounded-full bg-green-500"></div>
-					<span>Начало</span>
-				</div>
-				<div className="flex items-center gap-1">
-					<div className="w-3 h-3 rounded-full bg-red-500"></div>
-					<span>Конец</span>
-				</div>
-				<div className="flex items-center gap-1">
-					<div className="w-3 h-3 rounded-full bg-blue-500"></div>
-					<span>Ваше местоположение</span>
-				</div>
-				<div className="flex items-center gap-1">
-					<div className="w-3 h-3 rounded-full bg-orange-500"></div>
-					<span>Маршрут</span>
-				</div>
+				</Card>
 			</div>
 		</div>
 	);
+};
+
+// Обертка с поддержкой YMaps API
+export const RouteMap = withYMaps(RouteMapComponent, true, [
+	"Map",
+	"Placemark",
+	"Polyline",
+	"control.ZoomControl",
+	"control.TypeSelector",
+	"control.TrafficControl",
+	"control.GeolocationControl",
+	"control.RoutePanel",
+	"geoObject.addon.balloon",
+	"geoObject.addon.hint",
+	"util.bounds",
+]);
+function cn(...classes: (string | boolean | undefined)[]) {
+	return classes.filter(Boolean).join(" ");
 }

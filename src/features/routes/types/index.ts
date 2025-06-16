@@ -47,6 +47,19 @@ export const routeFormSchema = z.object({
 
 export type RouteFormValues = z.infer<typeof routeFormSchema>
 
+// Route form data interface
+export interface RouteFormData {
+    startAddress: string
+    endAddress: string
+    startLat?: number
+    startLon?: number
+    endLat?: number
+    endLon?: number
+    vehicleId?: string
+    driverId?: string
+    departureTime?: string
+}
+
 // Route planning types
 export interface RouteWaypoint {
     id: string
@@ -155,6 +168,7 @@ export interface DetailedRouteResponse {
     fuelCost: number
     tollCost: number
     estimatedDriverCost: number
+    additionalCosts?: number
     totalCost: number
     overallRisk: number
     weatherRisk: number
@@ -167,6 +181,10 @@ export interface DetailedRouteResponse {
     restStops: RestStop[]
     tollRoads: TollRoad[]
     riskAnalysis: RiskAnalysis
+    startLat?: number
+    startLon?: number
+    endLat?: number
+    endLon?: number
 }
 
 export interface WeatherCondition {

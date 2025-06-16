@@ -332,3 +332,5 @@ export function RouteMapPage() {
 		</div>
 	);
 }
+
+export default RouteMapPage;

@@ -1,0 +1,110 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# TruckNavigator Project Rules
+
+## Стек технологий
+
+* Backend: Java 17, Spring Boot 3.4, PostgreSQL, PostGIS, Docker
+* Frontend: React 19, TypeScript, Vite, Bun, Redux Toolkit, Axios, ShadCN UI, Lucide Icons
+* Архитектура Frontend: Feature-Sliced Design (FSD)
+
+## Правила разработки
+
+### Структура файлов
+
+* НЕ создавать demo/enhanced версии файлов
+* НЕ создавать README.md файлы без явного запроса
+* НЕ создавать дублирующие компоненты с суффиксами -v2, -new, -enhanced
+* Следовать FSD-структуре:
+
+  * `/app` — конфигурация приложения (роутинг, провайдеры, темы)
+  * `/pages` — страницы, соответствующие маршрутам
+  * `/widgets` — сложные блоки с UI + логикой
+  * `/features` — фичи, которые решают одну бизнес-задачу
+  * `/entities` — доменные сущности (user, truck, order и т.д.)
+  * `/shared` — переиспользуемые компоненты, типы, UI, стили, утилиты
+
+### Backend правила
+
+* Использовать Java 17 синтаксис, без функций Java 21+
+* Использовать Lombok для DTO, Entity, Request классов
+* Использовать формат REST API: `/api/{resource}`
+* Соблюдать структуру: `controller`, `service`, `repository`, `dto`, `entity`, `exception`
+
+### Frontend правила
+
+#### Типизация
+
+* Использовать строгую типизацию TypeScript (strict mode)
+* Исключить использование `any`, использовать `unknown` + type guards
+* Все формы типизируются через `Zod` схемы
+
+#### Импорты
+
+* Использовать алиасы `@/shared`, `@/features`, `@/entities` и т.д.
+* Все импорты должны быть отсортированы и сгруппированы
+
+#### API и Axios
+
+* Использовать **Axios** с единой конфигурацией (`src/shared/api/axios.ts`)
+* Настроить глобальный interceptor для:
+
+  * Подстановки токена авторизации
+  * Обработки 401 / 403 ошибок
+* Все endpoints разделить на модули по сущностям:
+
+  * `/shared/api/userApi.ts`
+  * `/shared/api/truckApi.ts` и т.д.
+* Все методы: `getUsers()`, `createTruck(data)`, `deleteOrder(id)` — без лишней абстракции
+* Ответы типизировать через DTO из backend схем
+* Логика авторизации, хранилища токенов, refresh — в отдельном `authService`
+
+#### Состояние
+
+* Redux Toolkit + Redux Persist
+* Для API — `RTK Query`, минимизировать собственные обертки над Axios
+* Для локального UI-стейта использовать `Zustand` или `React Context` (в рамках фичи)
+
+#### Формы
+
+* `React Hook Form` для валидации
+* `Zod` схемы — для строгой типизации и валидации форм
+* ErrorBoundaries — для безопасной отрисовки
+
+#### UI и стили
+
+* Использовать `ShadCN UI` компоненты — строго, без MUI
+* Tailwind CSS для стилей
+* Все UI-компоненты — в `/shared/ui/`
+* Разметка компонентов строго через семантические элементы
+* Анимации — `framer-motion` или Tailwind плагин `animate.css`
+* Иконки — через `Lucide React`
+
+#### Навигация и маршруты
+
+* `react-router-dom` v7, `lazy()` + `Suspense` для страниц
+* Все маршруты в `app/routes.ts`, навигация по алиасам
+* 404 и AuthGuard страницы обязательны
+
+## Запреты
+
+* ❌ НЕ запускать проект через `npm`, только `bun` (`bun dev`)
+* ❌ НЕ изменять `package.json` вручную
+* ❌ НЕ использовать `console.log` в production-коде
+* ❌ НЕ использовать `alert`/`prompt`
+* ❌ НЕ создавать временные UI-файлы `Temp.tsx` и `TestComponent.tsx`
+* ❌ НЕ использовать MUI, Bootstrap или кастомные UI-фреймворки
+
+## Соглашения
+
+* Файлы: `kebab-case`
+* Компоненты: `PascalCase`
+* Хуки: `useSomething`
+* Стили: Tailwind utility-first
+* Отступы: 4 пробела
+* Все переменные и enum'ы — на английском
+* Комментарии: только на русском, если это диплом
+

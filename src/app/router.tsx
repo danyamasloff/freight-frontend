@@ -16,16 +16,8 @@ import {
 import { DriversPage, DriverDetailPage, CreateDriverPage, EditDriverPage } from "@/pages/drivers";
 import { AnalyticsPage } from "@/pages/analytics";
 import { CompliancePage } from "@/pages/compliance";
-import {
-	FleetPage,
-	VehicleDetailsPage,
-	CreateVehiclePage,
-	EditVehiclePage,
-} from "@/pages/fleet/exports";
-import { CargoPage } from "@/pages/cargo/cargo-page";
-import { CargoDetailPage } from "@/features/cargo/cargo-detail-page";
-import { CreateCargoPage } from "@/pages/cargo/create-cargo";
-import { EditCargoPage } from "@/pages/cargo/edit-cargo";
+import { FleetPage, VehicleDetailsPage, CreateVehiclePage, EditVehiclePage } from "@/pages/fleet";
+import { CargoPage, CargoDetailPage, CreateCargoPage } from "@/pages/cargo";
 import { ROUTES } from "@/shared/constants";
 import {
 	NotFoundPage,
@@ -75,7 +67,6 @@ export function AppRouter() {
 				<Route path={ROUTES.CARGO} element={<CargoPage />} />
 				<Route path={ROUTES.CARGO_DETAILS} element={<CargoDetailPage />} />
 				<Route path={ROUTES.CARGO_CREATE} element={<CreateCargoPage />} />
-				<Route path={ROUTES.CARGO_EDIT} element={<EditCargoPage />} />
 
 				{/* Аналитика */}
 				<Route path={ROUTES.ANALYTICS} element={<AnalyticsPage />} />

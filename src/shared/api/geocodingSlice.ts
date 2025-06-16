@@ -46,22 +46,19 @@ export const geocodingSlice = apiSlice.injectEndpoints({
         reverseGeocode: builder.query<GeoLocation, { lat: number; lon: number }>({
             query: ({ lat, lon }) => `/geocoding/reverse?lat=${lat}&lon=${lon}`,
         }),
-        searchPlaces: builder.query<GeoLocation[], {
-            query?: string
-            osmTag?: string
-            limit?: number
-            lat?: number
-            lon?: number
+        searchPlaces: builder.query<GeoLocationDto[], { 
+            query: string; 
+            limit?: number;
         }>({
-            query: (params) => {
-                const searchParams = new URLSearchParams()
-                if (params.query) searchParams.append('query', params.query)
-                if (params.osmTag) searchParams.append('osmTag', params.osmTag)
-                if (params.limit) searchParams.append('limit', params.limit.toString())
-                if (params.lat) searchParams.append('lat', params.lat.toString())
-                if (params.lon) searchParams.append('lon', params.lon.toString())
-                return `/geocoding/search?${searchParams}`
-            },
+            query: ({ query, limit = 5 }) => ({
+                url: '/geocoding/search',
+                params: {
+                    query,
+                    limit: limit.toString()
+                }
+            }),
+            // Кеширование на 5 минут для автокомплита
+            keepUnusedDataFor: 300,
         }),
         findPlace: builder.query<GeoLocation[], {
             query: string
@@ -143,7 +140,7 @@ export const geocodingSlice = apiSlice.injectEndpoints({
         }),
         geocodeAddress: builder.query<GeocodingResult[], string>({
             query: (address) => ({
-                url: '/api/geocoding/search',
+                url: '/geocoding/search',
                 params: { 
                     q: address,
                     format: 'json',
@@ -170,7 +167,7 @@ export const geocodingSlice = apiSlice.injectEndpoints({
         }),
         reverseGeocodeAddress: builder.query<ReverseGeocodingResult, { lat: number; lon: number }>({
             query: ({ lat, lon }) => ({
-                url: '/api/geocoding/reverse',
+                url: '/geocoding/reverse',
                 params: { 
                     lat: lat.toString(),
                     lon: lon.toString(),
@@ -199,7 +196,7 @@ export const geocodingSlice = apiSlice.injectEndpoints({
             category?: string 
         }>({
             query: ({ lat, lon, radius = 5000, category = 'amenity' }) => ({
-                url: '/api/geocoding/nearby',
+                url: '/geocoding/nearby',
                 params: {
                     lat: lat.toString(),
                     lon: lon.toString(),
@@ -209,28 +206,6 @@ export const geocodingSlice = apiSlice.injectEndpoints({
                     limit: 20
                 }
             }),
-        }),
-        autocompleteAddress: builder.query<GeocodingResult[], { 
-            query: string; 
-            countryCode?: string;
-            bounded?: boolean;
-            viewbox?: string;
-        }>({
-            query: ({ query, countryCode = 'RU', bounded = true, viewbox }) => ({
-                url: '/api/geocoding/autocomplete',
-                params: {
-                    q: query,
-                    countrycodes: countryCode,
-                    bounded: bounded ? '1' : '0',
-                    viewbox: viewbox || '19.6,41.2,169.6,82.1', // Россия
-                    format: 'json',
-                    limit: 5,
-                    addressdetails: 1,
-                    accept_language: 'ru'
-                }
-            }),
-            // Кеширование на 5 минут для автокомплита
-            keepUnusedDataFor: 300,
         }),
     }),
 })
@@ -250,8 +225,8 @@ export const {
     useLazyGeocodeAddressQuery,
     useLazyReverseGeocodeQuery,
     useFindNearbyPOIQuery,
-    useAutocompleteAddressQuery,
-    useLazyAutocompleteAddressQuery,
+    useSearchPlacesQuery,
+    useReverseGeocodeQuery,
 } = geocodingSlice
 
 // API slice для новых endpoint'ов с GraphHopper
@@ -268,17 +243,6 @@ export const geocodingApi = createApi({
         },
     }),
     endpoints: (builder) => ({
-        // Автокомплит для поиска мест через GraphHopper
-        autocompletePlace: builder.query<GeoLocationDto[], string>({
-            query: (query) => ({
-                url: '/routes/autocomplete',
-                params: { 
-                    query,
-                    limit: 5 
-                }
-            }),
-        }),
-
         // Геокодирование места по названию через GraphHopper
         geocodePlace: builder.query<GeoLocationDto, string>({
             query: (placeName) => ({
@@ -314,13 +278,10 @@ export const geocodingApi = createApi({
 })
 
 export const {
-    useAutocompletePlaceQuery,
     useGeocodePlaceQuery,
     useFindFuelStationsQuery,
     useFindRestAreasQuery,
 } = geocodingApi
 
-// Для совместимости с существующим кодом - используем hooks из первого API
-export const useGeocodeAddressQuery = useAutocompleteAddressQuery
-export const useSearchPlacesQuery = useGeocodePlaceQuery
-export const useReverseGeocodeQuery = useLazyReverseGeocodeQuery
+// Для совместимости с существующим кодом
+export const useGeocodeAddressQuery = useGeocodeAddressQueryOriginal
