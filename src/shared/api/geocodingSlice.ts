@@ -1,287 +1,210 @@
-import { apiSlice } from './apiSlice'
-import type { GeoPoint, GeoLocation } from '@/shared/types/api'
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+import { apiSlice } from './apiSlice';
 
-export interface GeocodingResult {
+export interface GeoPoint {
     lat: number;
     lon: number;
-    display_name: string;
-    importance: number;
-    place_id?: string;
-    osm_id?: string;
-    address?: {
-        country?: string;
-        country_code?: string;
-        state?: string;
-        city?: string;
-        town?: string;
-        village?: string;
-        road?: string;
-        house_number?: string;
-        postcode?: string;
-    };
-}
-
-export interface ReverseGeocodingResult extends GeocodingResult {
-    addresstype: string;
-    category: string;
-    type: string;
+    displayName?: string;
 }
 
 export interface GeoLocationDto {
-    id?: number
-    name: string
-    description: string
-    latitude: number
-    longitude: number
-    type: string
-    provider: string
+    lat: number;
+    lon: number;
+    displayName: string;
+    osmId?: string;
+    osmType?: string;
+    category?: string;
+    type?: string;
+    importance?: number;
+    icon?: string;
+    address?: {
+        house_number?: string;
+        road?: string;
+        city?: string;
+        state?: string;
+        postcode?: string;
+        country?: string;
+    };
 }
 
-export const geocodingSlice = apiSlice.injectEndpoints({
+export const geocodingApi = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
         geocode: builder.query<GeoPoint, string>({
-            query: (placeName) => `/geocoding/geocode?placeName=${encodeURIComponent(placeName)}`,
-        }),
-        reverseGeocode: builder.query<GeoLocation, { lat: number; lon: number }>({
-            query: ({ lat, lon }) => `/geocoding/reverse?lat=${lat}&lon=${lon}`,
-        }),
-        searchPlaces: builder.query<GeoLocationDto[], { 
-            query: string; 
-            limit?: number;
-        }>({
-            query: ({ query, limit = 5 }) => ({
-                url: '/geocoding/search',
-                params: {
-                    query,
-                    limit: limit.toString()
-                }
+            query: (placeName: string) => ({
+                url: '/geocoding/geocode',
+                params: { placeName },
             }),
-            // Кеширование на 5 минут для автокомплита
-            keepUnusedDataFor: 300,
+            providesTags: ['Geocoding'],
         }),
-        findPlace: builder.query<GeoLocation[], {
-            query: string
-            placeType?: string
-            lat?: number
-            lon?: number
-        }>({
-            query: ({ query, placeType, lat, lon }) => {
-                const params = new URLSearchParams({ query })
-                if (placeType) params.append('placeType', placeType)
-                if (lat) params.append('lat', lat.toString())
-                if (lon) params.append('lon', lon.toString())
-                return `/routes/find-place?${params}`
-            },
-        }),
-        getFuelStations: builder.query<GeoLocation[], {
-            lat: number
-            lon: number
-            radius?: number
-        }>({
-            query: ({ lat, lon, radius = 5000 }) =>
-                `/geocoding/fuel-stations?lat=${lat}&lon=${lon}&radius=${radius}`,
-        }),
-        getRestAreas: builder.query<GeoLocation[], {
-            lat: number
-            lon: number
-            radius?: number
-        }>({
-            query: ({ lat, lon, radius = 15000 }) =>
-                `/geocoding/rest-areas?lat=${lat}&lon=${lon}&radius=${radius}`,
-        }),
-        getFoodStops: builder.query<GeoLocation[], {
-            lat: number
-            lon: number
-            radius?: number
-        }>({
-            query: ({ lat, lon, radius = 10000 }) =>
-                `/geocoding/food-stops?lat=${lat}&lon=${lon}&radius=${radius}`,
-        }),
-        getParking: builder.query<GeoLocation[], {
-            lat: number
-            lon: number
-            radius?: number
-        }>({
-            query: ({ lat, lon, radius = 10000 }) =>
-                `/geocoding/parking?lat=${lat}&lon=${lon}&radius=${radius}`,
-        }),
-        getLodging: builder.query<GeoLocation[], {
-            lat: number
-            lon: number
-            radius?: number
-        }>({
-            query: ({ lat, lon, radius = 20000 }) =>
-                `/geocoding/lodging?lat=${lat}&lon=${lon}&radius=${radius}`,
-        }),
-        getAtms: builder.query<GeoLocation[], {
-            lat: number
-            lon: number
-            radius?: number
-        }>({
-            query: ({ lat, lon, radius = 5000 }) =>
-                `/geocoding/atms?lat=${lat}&lon=${lon}&radius=${radius}`,
-        }),
-        getPharmacies: builder.query<GeoLocation[], {
-            lat: number
-            lon: number
-            radius?: number
-        }>({
-            query: ({ lat, lon, radius = 5000 }) =>
-                `/geocoding/pharmacies?lat=${lat}&lon=${lon}&radius=${radius}`,
-        }),
-        getHospitals: builder.query<GeoLocation[], {
-            lat: number
-            lon: number
-            radius?: number
-        }>({
-            query: ({ lat, lon, radius = 10000 }) =>
-                `/geocoding/hospitals?lat=${lat}&lon=${lon}&radius=${radius}`,
-        }),
-        geocodeAddress: builder.query<GeocodingResult[], string>({
-            query: (address) => ({
-                url: '/geocoding/search',
-                params: { 
-                    q: address,
-                    format: 'json',
-                    limit: 10,
-                    addressdetails: 1,
-                    accept_language: 'ru'
-                }
-            }),
-            transformResponse: (response: any[]) => {
-                // Фильтруем и сортируем результаты по важности
-                return response
-                    .filter(item => item.lat && item.lon)
-                    .map(item => ({
-                        lat: parseFloat(item.lat),
-                        lon: parseFloat(item.lon),
-                        display_name: item.display_name,
-                        importance: item.importance || 0,
-                        place_id: item.place_id,
-                        osm_id: item.osm_id,
-                        address: item.address
-                    }))
-                    .sort((a, b) => b.importance - a.importance);
-            },
-        }),
-        reverseGeocodeAddress: builder.query<ReverseGeocodingResult, { lat: number; lon: number }>({
-            query: ({ lat, lon }) => ({
+        reverseGeocode: builder.query<GeoLocationDto, { lat: number; lon: number }>({
+            query: ({ lat, lon }: { lat: number; lon: number }) => ({
                 url: '/geocoding/reverse',
-                params: { 
-                    lat: lat.toString(),
-                    lon: lon.toString(),
-                    format: 'json',
-                    addressdetails: 1,
-                    accept_language: 'ru'
-                }
+                params: { lat, lon },
             }),
-            transformResponse: (response: any) => ({
-                lat: parseFloat(response.lat),
-                lon: parseFloat(response.lon),
-                display_name: response.display_name,
-                importance: response.importance || 0,
-                place_id: response.place_id,
-                osm_id: response.osm_id,
-                address: response.address,
-                addresstype: response.addresstype,
-                category: response.category,
-                type: response.type
-            }),
+            providesTags: ['Geocoding'],
         }),
-        findNearbyPOI: builder.query<GeocodingResult[], { 
-            lat: number; 
-            lon: number; 
-            radius?: number; 
-            category?: string 
+        searchPlaces: builder.query<GeoLocationDto[], {
+            query?: string;
+            osmTag?: string;
+            limit?: number;
+            lat?: number;
+            lon?: number;
         }>({
-            query: ({ lat, lon, radius = 5000, category = 'amenity' }) => ({
-                url: '/geocoding/nearby',
-                params: {
-                    lat: lat.toString(),
-                    lon: lon.toString(),
-                    radius: radius.toString(),
-                    category,
-                    format: 'json',
-                    limit: 20
-                }
+            query: (params: {
+                query?: string;
+                osmTag?: string;
+                limit?: number;
+                lat?: number;
+                lon?: number;
+            }) => ({
+                url: '/geocoding/search',
+                params,
             }),
+            providesTags: ['Geocoding'],
+        }),
+        findFuelStations: builder.query<GeoLocationDto[], {
+            lat: number;
+            lon: number;
+            radius?: number;
+        }>({
+            query: ({ lat, lon, radius = 5000 }: {
+                lat: number;
+                lon: number;
+                radius?: number;
+            }) => ({
+                url: '/geocoding/fuel-stations',
+                params: { lat, lon, radius },
+            }),
+            providesTags: ['Geocoding'],
+        }),
+        findRestAreas: builder.query<GeoLocationDto[], {
+            lat: number;
+            lon: number;
+            radius?: number;
+        }>({
+            query: ({ lat, lon, radius = 15000 }: {
+                lat: number;
+                lon: number;
+                radius?: number;
+            }) => ({
+                url: '/geocoding/rest-areas',
+                params: { lat, lon, radius },
+            }),
+            providesTags: ['Geocoding'],
+        }),
+        findFoodStops: builder.query<GeoLocationDto[], {
+            lat: number;
+            lon: number;
+            radius?: number;
+        }>({
+            query: ({ lat, lon, radius = 10000 }: {
+                lat: number;
+                lon: number;
+                radius?: number;
+            }) => ({
+                url: '/geocoding/food-stops',
+                params: { lat, lon, radius },
+            }),
+            providesTags: ['Geocoding'],
+        }),
+        findParkingSpots: builder.query<GeoLocationDto[], {
+            lat: number;
+            lon: number;
+            radius?: number;
+        }>({
+            query: ({ lat, lon, radius = 10000 }: {
+                lat: number;
+                lon: number;
+                radius?: number;
+            }) => ({
+                url: '/geocoding/parking',
+                params: { lat, lon, radius },
+            }),
+            providesTags: ['Geocoding'],
+        }),
+        findLodging: builder.query<GeoLocationDto[], {
+            lat: number;
+            lon: number;
+            radius?: number;
+        }>({
+            query: ({ lat, lon, radius = 20000 }: {
+                lat: number;
+                lon: number;
+                radius?: number;
+            }) => ({
+                url: '/geocoding/lodging',
+                params: { lat, lon, radius },
+            }),
+            providesTags: ['Geocoding'],
+        }),
+        findAtms: builder.query<GeoLocationDto[], {
+            lat: number;
+            lon: number;
+            radius?: number;
+        }>({
+            query: ({ lat, lon, radius = 5000 }: {
+                lat: number;
+                lon: number;
+                radius?: number;
+            }) => ({
+                url: '/geocoding/atms',
+                params: { lat, lon, radius },
+            }),
+            providesTags: ['Geocoding'],
+        }),
+        findPharmacies: builder.query<GeoLocationDto[], {
+            lat: number;
+            lon: number;
+            radius?: number;
+        }>({
+            query: ({ lat, lon, radius = 5000 }: {
+                lat: number;
+                lon: number;
+                radius?: number;
+            }) => ({
+                url: '/geocoding/pharmacies',
+                params: { lat, lon, radius },
+            }),
+            providesTags: ['Geocoding'],
+        }),
+        findHospitals: builder.query<GeoLocationDto[], {
+            lat: number;
+            lon: number;
+            radius?: number;
+        }>({
+            query: ({ lat, lon, radius = 10000 }: {
+                lat: number;
+                lon: number;
+                radius?: number;
+            }) => ({
+                url: '/geocoding/hospitals',
+                params: { lat, lon, radius },
+            }),
+            providesTags: ['Geocoding'],
         }),
     }),
-})
+});
 
 export const {
     useGeocodeQuery,
-    useFindPlaceQuery,
-    useGetFuelStationsQuery,
-    useGetRestAreasQuery,
-    useGetFoodStopsQuery,
-    useGetParkingQuery,
-    useGetLodgingQuery,
-    useGetAtmsQuery,
-    useGetPharmaciesQuery,
-    useGetHospitalsQuery,
-    useGeocodeAddressQuery: useGeocodeAddressQueryOriginal,
-    useLazyGeocodeAddressQuery,
-    useLazyReverseGeocodeQuery,
-    useFindNearbyPOIQuery,
-    useSearchPlacesQuery,
+    useLazyGeocodeQuery,
     useReverseGeocodeQuery,
-} = geocodingSlice
-
-// API slice для новых endpoint'ов с GraphHopper
-export const geocodingApi = createApi({
-    reducerPath: 'geocodingApi',
-    baseQuery: fetchBaseQuery({
-        baseUrl: '/api',
-        prepareHeaders: (headers) => {
-            const token = localStorage.getItem('token')
-            if (token) {
-                headers.set('authorization', `Bearer ${token}`)
-            }
-            return headers
-        },
-    }),
-    endpoints: (builder) => ({
-        // Геокодирование места по названию через GraphHopper
-        geocodePlace: builder.query<GeoLocationDto, string>({
-            query: (placeName) => ({
-                url: '/routes/geocode-place',
-                params: { placeName }
-            }),
-        }),
-
-        // Поиск АЗС через GraphHopper
-        findFuelStations: builder.query<GeoLocationDto[], {
-            lat: number,
-            lon: number,
-            radius?: number
-        }>({
-            query: ({ lat, lon, radius = 5000 }) => ({
-                url: '/geocoding/fuel-stations',
-                params: { lat, lon, radius }
-            }),
-        }),
-
-        // Поиск зон отдыха через GraphHopper
-        findRestAreas: builder.query<GeoLocationDto[], {
-            lat: number,
-            lon: number,
-            radius?: number
-        }>({
-            query: ({ lat, lon, radius = 15000 }) => ({
-                url: '/geocoding/rest-areas',
-                params: { lat, lon, radius }
-            }),
-        }),
-    }),
-})
-
-export const {
-    useGeocodePlaceQuery,
+    useLazyReverseGeocodeQuery,
+    useSearchPlacesQuery,
+    useLazySearchPlacesQuery,
     useFindFuelStationsQuery,
+    useLazyFindFuelStationsQuery,
     useFindRestAreasQuery,
-} = geocodingApi
-
-// Для совместимости с существующим кодом
-export const useGeocodeAddressQuery = useGeocodeAddressQueryOriginal
+    useLazyFindRestAreasQuery,
+    useFindFoodStopsQuery,
+    useLazyFindFoodStopsQuery,
+    useFindParkingSpotsQuery,
+    useLazyFindParkingSpotsQuery,
+    useFindLodgingQuery,
+    useLazyFindLodgingQuery,
+    useFindAtmsQuery,
+    useLazyFindAtmsQuery,
+    useFindPharmaciesQuery,
+    useLazyFindPharmaciesQuery,
+    useFindHospitalsQuery,
+    useLazyFindHospitalsQuery,
+} = geocodingApi; 

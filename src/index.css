@@ -233,10 +233,20 @@
 
 /* Выпадающие списки */
 .search-dropdown {
-	z-index: 9999;
+	z-index: 9999 !important;
 	background-color: oklch(var(--card));
 	border: 1px solid oklch(var(--border));
 	box-shadow: 0 10px 40px oklch(0.15 0.05 30 / 0.1);
+}
+
+/* Исправление z-index для поиска мест */
+.place-search-dropdown {
+	z-index: 9999 !important;
+	position: relative;
+}
+
+.place-search-dropdown > * {
+	z-index: 9999 !important;
 }
 
 /* Оптимизированная кнопка в стиле Claude */
@@ -648,4 +658,128 @@
 	.claude-shadow-xl {
 		@apply shadow-xl shadow-orange-500/20;
 	}
+}
+
+/* Custom animations and styles */
+@layer utilities {
+	.animate-fade-in {
+		animation: fadeIn 0.5s ease-out;
+	}
+
+	.animate-slide-up {
+		animation: slideUp 0.3s ease-out;
+	}
+
+	.animate-scale-in {
+		animation: scaleIn 0.2s ease-out;
+	}
+
+	.animate-bounce-in {
+		animation: bounceIn 0.4s ease-out;
+	}
+
+	.glass-effect {
+		@apply bg-background/80 backdrop-blur-md border border-border/50;
+	}
+
+	.gradient-border {
+		background:
+			linear-gradient(white, white) padding-box,
+			linear-gradient(45deg, hsl(var(--primary)), hsl(var(--primary) / 0.5)) border-box;
+		border: 2px solid transparent;
+	}
+
+	.hover-lift {
+		transition:
+			transform 0.2s ease,
+			box-shadow 0.2s ease;
+	}
+
+	.hover-lift:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 8px 25px -8px hsl(var(--primary) / 0.3);
+	}
+
+	.text-gradient {
+		background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.7));
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+	}
+
+	.bg-grid-pattern {
+		background-image:
+			linear-gradient(hsl(var(--border)) 1px, transparent 1px),
+			linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px);
+		background-size: 20px 20px;
+	}
+
+	.bg-dot-pattern {
+		background-image: radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px);
+		background-size: 20px 20px;
+	}
+
+	.card-hover {
+		transition: all 0.3s ease;
+	}
+
+	.card-hover:hover {
+		transform: translateY(-4px);
+		box-shadow: 0 20px 40px -12px hsl(var(--primary) / 0.15);
+	}
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes slideUp {
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes scaleIn {
+	from {
+		opacity: 0;
+		transform: scale(0.9);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@keyframes bounceIn {
+	0% {
+		opacity: 0;
+		transform: scale(0.3);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1.05);
+	}
+	70% {
+		transform: scale(0.9);
+	}
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+/* Place search dropdown z-index fix */
+.place-search-dropdown {
+	z-index: 9999 !important;
+	position: relative !important;
 }

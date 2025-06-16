@@ -1,1 +1,1 @@
-export { PlaceSearch } from './place-search'
+export { PlaceSearchEnhanced } from './place-search-enhanced'
