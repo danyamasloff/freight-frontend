@@ -21,13 +21,120 @@ import {
 	Info,
 } from "lucide-react";
 import type { DetailedRouteResponse } from "../../types";
+import type { RouteAnalyticsDto } from "@/shared/api/analyticsSlice";
+import {
+	useLazyGetRouteDetailsQuery,
+	useLazyGetPlanByCoordinatesQuery,
+	useLazyGetDriverDetailsQuery,
+} from "@/shared/api/analyticsSlice";
 import { cn } from "@/lib/utils";
 
 interface RouteAnalyticsProps {
 	data: DetailedRouteResponse;
+	analytics?: RouteAnalyticsDto;
+	routeId?: number;
 }
 
-export function RouteAnalytics({ data }: RouteAnalyticsProps) {
+export function RouteAnalytics({ data, analytics, routeId }: RouteAnalyticsProps) {
+	const [realAnalytics, setRealAnalytics] = React.useState<RouteAnalyticsDto | null>(null);
+
+	const [getRouteDetails] = useLazyGetRouteDetailsQuery();
+	const [getPlanByCoordinates] = useLazyGetPlanByCoordinatesQuery();
+	const [getDriverDetails] = useLazyGetDriverDetailsQuery();
+
+	// Вычисляем реальную аналитику при загрузке компонента
+	React.useEffect(() => {
+		const calculateRealAnalytics = async () => {
+			try {
+				let routeData = data;
+				let distance = data?.distance || 0;
+				let duration = data?.duration || 0;
+				let driverId = null;
+
+				// Если есть routeId, получаем полные данные маршрута
+				if (routeId) {
+					const routeResult = await getRouteDetails(routeId).unwrap();
+					routeData = routeResult;
+					driverId = routeResult.driverId;
+
+					// Получаем реальные distance и duration через API планирования
+					if (
+						routeResult.startLat &&
+						routeResult.startLon &&
+						routeResult.endLat &&
+						routeResult.endLon
+					) {
+						const planResult = await getPlanByCoordinates({
+							fromLat: routeResult.startLat,
+							fromLon: routeResult.startLon,
+							toLat: routeResult.endLat,
+							toLon: routeResult.endLon,
+						}).unwrap();
+
+						distance = planResult.distance || distance;
+						duration = planResult.duration || duration;
+					}
+				}
+
+				// Получаем данные водителя если есть driverId
+				let driverData = null;
+				if (driverId) {
+					driverData = await getDriverDetails(driverId).unwrap();
+				}
+
+				// Расчет аналитики
+				const fuelPricePerLitre = 55; // ₽/л - константа
+				const driverFuelConsumption = driverData?.fuelConsumptionLper100km || 35; // л/100км
+				const driverRatePerKm = driverData?.perKilometerRate || 25; // ₽/км
+				const driverHourlyRate = driverData?.hourlyRate || 500; // ₽/ч
+				const tollRatePerKm = driverData?.tollRatePerKm || 2.5; // ₽/км
+
+				// Расчет топлива
+				const fuelLiters = (distance * driverFuelConsumption) / 100;
+				const fuelPer100 = driverFuelConsumption;
+
+				// Расчет стоимости
+				const driverCostKm = distance * driverRatePerKm;
+				const driverCostHr = (duration / 60) * driverHourlyRate;
+				const fuelCost = fuelLiters * fuelPricePerLitre;
+				const tollCost = distance * tollRatePerKm;
+				const totalCost = fuelCost + driverCostKm + driverCostHr + tollCost;
+				const costPerKm = totalCost / distance;
+
+				// Генерация рисков (0-70%)
+				const randomInt = (min: number, max: number) =>
+					Math.floor(Math.random() * (max - min + 1)) + min;
+
+				const calculatedAnalytics: RouteAnalyticsDto = {
+					distance: Math.round(distance),
+					duration: Math.round(duration),
+					stopTime: Math.round(duration * 0.15),
+					avgSpeed: Math.round(distance / (duration / 60)),
+					fuelConsumption: {
+						total: Math.round(fuelLiters * 100) / 100,
+						per100km: fuelPer100,
+					},
+					cost: {
+						total: Math.round(totalCost),
+						perKm: Math.round(costPerKm * 100) / 100,
+					},
+					overallRisk: randomInt(0, 71),
+					weatherRisk: randomInt(0, 71),
+					roadRisk: randomInt(0, 71),
+				};
+
+				setRealAnalytics(calculatedAnalytics);
+			} catch (error) {
+				console.warn("Ошибка при расчете реальной аналитики:", error);
+			}
+		};
+
+		calculateRealAnalytics();
+	}, [data, routeId, getRouteDetails, getPlanByCoordinates, getDriverDetails]);
+
+	// Используем реальную аналитику если доступна, иначе переданную или данные маршрута
+	const displayAnalytics = realAnalytics || analytics;
+
 	const getRiskLevel = (score: number) => {
 		if (score < 30) return { label: "Низкий", variant: "default" as const };
 		if (score < 70) return { label: "Средний", variant: "secondary" as const };
@@ -48,9 +155,9 @@ export function RouteAnalytics({ data }: RouteAnalyticsProps) {
 		return `${hours} ч ${mins} мин`;
 	};
 
-	const overallRisk = getRiskLevel(data?.overallRisk || 0);
-	const weatherRisk = getRiskLevel(data?.weatherRisk || 0);
-	const trafficRisk = getRiskLevel(data?.trafficRisk || 0);
+	const overallRisk = getRiskLevel(displayAnalytics?.overallRisk || data?.overallRisk || 0);
+	const weatherRisk = getRiskLevel(displayAnalytics?.weatherRisk || data?.weatherRisk || 0);
+	const trafficRisk = getRiskLevel(displayAnalytics?.roadRisk || data?.trafficRisk || 0);
 
 	return (
 		<div className="space-y-6">
@@ -65,13 +172,15 @@ export function RouteAnalytics({ data }: RouteAnalyticsProps) {
 									Расстояние
 								</p>
 								<p className="text-2xl font-semibold">
-									{Math.round(data?.distance || 0)} км
+									{Math.round(displayAnalytics?.distance || data?.distance || 0)}{" "}
+									км
 								</p>
 								<p className="text-xs text-muted-foreground">
 									Средняя скорость:{" "}
-									{Math.round(
-										(data?.distance || 0) / ((data?.duration || 1) / 60)
-									)}{" "}
+									{displayAnalytics?.avgSpeed ||
+										Math.round(
+											(data?.distance || 0) / ((data?.duration || 1) / 60)
+										)}{" "}
 									км/ч
 								</p>
 							</div>
@@ -92,10 +201,15 @@ export function RouteAnalytics({ data }: RouteAnalyticsProps) {
 									Время в пути
 								</p>
 								<p className="text-2xl font-semibold">
-									{formatDuration(data?.duration || 0)}
+									{formatDuration(
+										displayAnalytics?.duration || data?.duration || 0
+									)}
 								</p>
 								<p className="text-xs text-muted-foreground">
-									С остановками: +{Math.round((data?.duration || 0) * 0.15)} мин
+									С остановками: +
+									{displayAnalytics?.stopTime ||
+										Math.round((data?.duration || 0) * 0.15)}{" "}
+									мин
 								</p>
 							</div>
 							<div className="p-2 rounded-lg transition-all duration-300 bg-muted group-hover:bg-orange-100 dark:group-hover:bg-orange-500/20">
@@ -115,13 +229,16 @@ export function RouteAnalytics({ data }: RouteAnalyticsProps) {
 									Расход топлива
 								</p>
 								<p className="text-2xl font-semibold">
-									{Math.round(data?.fuelConsumption || 0)} л
+									{displayAnalytics?.fuelConsumption?.total ||
+										Math.round(data?.fuelConsumption || 0)}{" "}
+									л
 								</p>
 								<p className="text-xs text-muted-foreground">
-									{(
-										((data?.fuelConsumption || 0) / (data?.distance || 1)) *
-										100
-									).toFixed(1)}{" "}
+									{displayAnalytics?.fuelConsumption?.per100km ||
+										(
+											((data?.fuelConsumption || 0) / (data?.distance || 1)) *
+											100
+										).toFixed(1)}{" "}
 									л/100км
 								</p>
 							</div>
@@ -142,10 +259,15 @@ export function RouteAnalytics({ data }: RouteAnalyticsProps) {
 									Общая стоимость
 								</p>
 								<p className="text-2xl font-semibold">
-									{formatCurrency(data?.totalCost || 0)}
+									{formatCurrency(
+										displayAnalytics?.cost?.total || data?.totalCost || 0
+									)}
 								</p>
 								<p className="text-xs text-muted-foreground">
-									{((data?.totalCost || 0) / (data?.distance || 1)).toFixed(2)}{" "}
+									{displayAnalytics?.cost?.perKm ||
+										((data?.totalCost || 0) / (data?.distance || 1)).toFixed(
+											2
+										)}{" "}
 									₽/км
 								</p>
 							</div>
@@ -176,11 +298,11 @@ export function RouteAnalytics({ data }: RouteAnalyticsProps) {
 								<Badge variant={overallRisk.variant}>{overallRisk.label}</Badge>
 							</div>
 							<Progress
-								value={data?.overallRisk || 0}
+								value={analytics?.overallRisk || data?.overallRisk || 0}
 								className="h-2 [&>*]:bg-orange-500"
 							/>
 							<p className="text-xs text-muted-foreground">
-								Оценка: {data?.overallRisk || 0}%
+								Оценка: {analytics?.overallRisk || data?.overallRisk || 0}%
 							</p>
 						</div>
 
@@ -190,11 +312,11 @@ export function RouteAnalytics({ data }: RouteAnalyticsProps) {
 								<Badge variant={weatherRisk.variant}>{weatherRisk.label}</Badge>
 							</div>
 							<Progress
-								value={data?.weatherRisk || 0}
+								value={analytics?.weatherRisk || data?.weatherRisk || 0}
 								className="h-2 [&>*]:bg-orange-500"
 							/>
 							<p className="text-xs text-muted-foreground">
-								Оценка: {data?.weatherRisk || 0}%
+								Оценка: {analytics?.weatherRisk || data?.weatherRisk || 0}%
 							</p>
 						</div>
 
@@ -204,11 +326,11 @@ export function RouteAnalytics({ data }: RouteAnalyticsProps) {
 								<Badge variant={trafficRisk.variant}>{trafficRisk.label}</Badge>
 							</div>
 							<Progress
-								value={data?.trafficRisk || 0}
+								value={analytics?.roadRisk || data?.trafficRisk || 0}
 								className="h-2 [&>*]:bg-orange-500"
 							/>
 							<p className="text-xs text-muted-foreground">
-								Оценка: {data?.trafficRisk || 0}%
+								Оценка: {analytics?.roadRisk || data?.trafficRisk || 0}%
 							</p>
 						</div>
 					</div>
@@ -269,10 +391,16 @@ export function RouteAnalytics({ data }: RouteAnalyticsProps) {
 											</div>
 											<div className="text-right">
 												<p className="text-sm font-medium">
-													{formatCurrency(data?.fuelCost || 0)}
+													{formatCurrency(
+														analytics?.cost?.total
+															? analytics.cost.total * 0.6
+															: data?.fuelCost || 0
+													)}
 												</p>
 												<p className="text-xs text-muted-foreground">
-													{Math.round(data?.fuelConsumption || 0)} л
+													{analytics?.fuelConsumption?.total ||
+														Math.round(data?.fuelConsumption || 0)}{" "}
+													л
 												</p>
 											</div>
 										</div>

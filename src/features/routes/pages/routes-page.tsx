@@ -405,7 +405,7 @@ export function RoutesPage() {
 														<DropdownMenuItem
 															onClick={() =>
 																navigate(
-																	`${ROUTES.ROUTES}/${route.id}/edit`
+																	`${ROUTES.ROUTE_EDIT.replace(":id", route.id.toString())}`
 																)
 															}
 														>

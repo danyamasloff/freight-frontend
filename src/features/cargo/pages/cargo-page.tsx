@@ -448,7 +448,7 @@ export function CargoPage() {
 															</Link>
 														</DropdownMenuItem>
 														<DropdownMenuItem asChild>
-															<Link to={`/cargo/${cargo.id}/edit`}>
+															<Link to={`/cargo/edit/${cargo.id}`}>
 																<Edit className="mr-2 h-4 w-4" />
 																Редактировать
 															</Link>

@@ -112,7 +112,7 @@ export const vehiclesApiSlice = apiSlice.injectEndpoints({
                 method: 'POST',
                 body: transformToBackendVehicle(vehicleData),
             }),
-            invalidatesTags: ['Vehicle'],
+            invalidatesTags: ['Vehicle', 'Notification'],
             transformResponse: (response: VehicleDetailBackendDto) => 
                 transformVehicleDetail(response),
         }),
@@ -122,7 +122,7 @@ export const vehiclesApiSlice = apiSlice.injectEndpoints({
                 method: 'PUT',
                 body: transformToBackendVehicle({ ...data, id }),
             }),
-            invalidatesTags: (result, error, { id }) => [{ type: 'Vehicle', id }],
+            invalidatesTags: (result, error, { id }) => [{ type: 'Vehicle', id }, 'Notification'],
             transformResponse: (response: VehicleDetailBackendDto) => 
                 transformVehicleDetail(response),
         }),
@@ -135,24 +135,67 @@ export const vehiclesApiSlice = apiSlice.injectEndpoints({
         }),
 
         // === Специальные операции ===
-        updateFuelLevel: builder.mutation<any, FuelUpdateDto>({
-            query: ({ id, fuelLevel }) => ({
-                url: `/vehicles/${id}/fuel-level?fuelLevel=${fuelLevel}`,
+        updateFuelLevel: builder.mutation<any, { vehicleId: number; fuelLevel: number }>({
+            query: ({ vehicleId, fuelLevel }) => ({
+                url: `/vehicles/${vehicleId}/fuel-level`,
                 method: 'PUT',
+                body: { fuelLevel },
             }),
-            invalidatesTags: (result, error, { id }) => [{ type: 'Vehicle', id }],
+            invalidatesTags: (result, error, { vehicleId }) => [{ type: 'Vehicle', id: vehicleId }],
             transformResponse: (response: VehicleDetailBackendDto) => 
                 transformVehicleDetail(response),
         }),
 
-        updateOdometer: builder.mutation<any, OdometerUpdateDto>({
-            query: ({ id, odometerValue }) => ({
-                url: `/vehicles/${id}/odometer?odometerValue=${odometerValue}`,
+        updateOdometer: builder.mutation<any, { vehicleId: number; odometerValue: number }>({
+            query: ({ vehicleId, odometerValue }) => ({
+                url: `/vehicles/${vehicleId}/odometer`,
                 method: 'PUT',
+                body: { odometerValue },
             }),
-            invalidatesTags: (result, error, { id }) => [{ type: 'Vehicle', id }],
+            invalidatesTags: (result, error, { vehicleId }) => [{ type: 'Vehicle', id: vehicleId }],
             transformResponse: (response: VehicleDetailBackendDto) => 
                 transformVehicleDetail(response),
+        }),
+
+        // === Получение доступных ТС для назначения на маршрут ===
+        getAvailableVehiclesForRoute: builder.query<any[], { excludeRouteId?: number }>({
+            query: ({ excludeRouteId }) => {
+                const params = new URLSearchParams();
+                if (excludeRouteId) {
+                    params.append('excludeRouteId', excludeRouteId.toString());
+                }
+                return `/vehicles/available-for-route?${params}`;
+            },
+            providesTags: ['Vehicle'],
+            transformResponse: (response: VehicleSummaryBackendDto[]) => 
+                response.map((vehicle) => ({
+                    ...transformVehicleSummary(vehicle),
+                    isAvailable: true,
+                    assignedRouteId: null,
+                    reasonUnavailable: null
+                })),
+        }),
+
+        // === Получение всех ТС с информацией о доступности ===
+        getVehiclesWithAvailability: builder.query<any[], { forRouteId?: number }>({
+            query: ({ forRouteId }) => {
+                const params = new URLSearchParams();
+                if (forRouteId) {
+                    params.append('forRouteId', forRouteId.toString());
+                }
+                return `/vehicles/with-availability?${params}`;
+            },
+            providesTags: ['Vehicle'],
+            transformResponse: (response: any[]) => 
+                response.map((vehicle) => ({
+                    ...transformVehicleSummary(vehicle),
+                    isAvailable: vehicle.status === 'AVAILABLE',
+                    assignedRouteId: vehicle.assignedRouteId || null,
+                    reasonUnavailable: vehicle.assignedRouteId ? `занят маршрутом №${vehicle.assignedRouteId}` : 
+                                     vehicle.status === 'IN_USE' ? 'в работе' :
+                                     vehicle.status === 'MAINTENANCE' ? 'на техобслуживании' :
+                                     vehicle.status === 'OUT_OF_SERVICE' ? 'вне эксплуатации' : null
+                })),
         }),
     }),
 });
@@ -165,4 +208,6 @@ export const {
     useDeleteVehicleMutation,
     useUpdateFuelLevelMutation,
     useUpdateOdometerMutation,
+    useGetAvailableVehiclesForRouteQuery,
+    useGetVehiclesWithAvailabilityQuery,
 } = vehiclesApiSlice;

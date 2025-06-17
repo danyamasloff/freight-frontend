@@ -125,7 +125,7 @@ export const API_ERROR_CODES = {
 export const DEFAULT_VALUES = {
     // Route planning defaults
     ROUTE: {
-        PROFILE: 'driving',
+        PROFILE: 'car',
         VEHICLE_TYPE: 'truck',
         CALC_POINTS: true,
         INSTRUCTIONS: true,

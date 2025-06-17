@@ -18,8 +18,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { NotificationsDropdown } from "@/components/ui/notifications";
-import { useNotifications } from "@/contexts/NotificationContext";
+import { NotificationsPanel } from "@/components/notifications";
 import { useTheme } from "@/components/theme-provider";
 import { useAppDispatch, useAppSelector } from "@/shared/hooks/redux";
 import { clearCredentials } from "@/app/store/authSlice";
@@ -29,7 +28,6 @@ import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 
 export function Header() {
-	const { notifications, isConnected, markAsRead, clearNotifications } = useNotifications();
 	const { theme, setTheme } = useTheme();
 	const dispatch = useAppDispatch();
 	const navigate = useNavigate();
@@ -66,7 +64,6 @@ export function Header() {
 			toast({
 				title: "Выход выполнен",
 				description: "Вы успешно вышли из системы. До свидания!",
-				duration: 3000,
 			});
 
 			// Перенаправляем на страницу входа
@@ -88,12 +85,7 @@ export function Header() {
 
 				<div className="flex items-center space-x-2">
 					{/* Уведомления */}
-					<NotificationsDropdown
-						notifications={notifications}
-						isConnected={isConnected}
-						onMarkAsRead={markAsRead}
-						onClearAll={clearNotifications}
-					/>
+					<NotificationsPanel />
 
 					{/* Улучшенный переключатель темы */}
 					<DropdownMenu>

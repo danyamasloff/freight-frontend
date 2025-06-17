@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { cn } from "@/lib/utils";
-import { GeocodingInput } from "./geocoding-input";
+import { PlaceSearchEnhanced } from "@/features/geocoding/components/place-search-enhanced";
 import { useGetVehiclesQuery } from "@/shared/api/vehiclesApiSlice";
 import { useGetDriversQuery } from "@/shared/api/driversSlice";
 import { useGetWeatherForArrivalQuery } from "@/shared/api/weatherSlice";
@@ -31,12 +32,16 @@ import {
 	Users,
 	Package,
 	TrendingUp,
+	RefreshCw,
+	Phone,
 	Award,
 	Gauge,
-	Shield,
-	RefreshCw,
+	Battery,
+	Wrench,
+	AlertTriangle,
 } from "lucide-react";
 import type { RouteFormData } from "../../types";
+import type { GeoLocationDto } from "@/shared/api/geocodingSlice";
 
 const routeSchema = z.object({
 	startAddress: z.string().min(1, "Укажите точку отправления"),
@@ -156,14 +161,18 @@ export function RouteForm({ onSubmit, isLoading, currentLocation }: RouteFormPro
 							Точка отправления
 						</Label>
 						<div className="relative">
-							<GeocodingInput
-								placeholder="Введите адрес отправления"
-								onLocationSelect={(location) => {
-									setStartCoordinates({ lat: location.lat, lon: location.lon });
-									setValue("startAddress", location.address);
+							<PlaceSearchEnhanced
+								value={watchedValues.startAddress || ""}
+								onChange={(value) => setValue("startAddress", value)}
+								onPlaceSelect={(place: GeoLocationDto) => {
+									const lat = place.latitude || place.lat || 0;
+									const lon = place.longitude || place.lon || 0;
+									setStartCoordinates({ lat, lon });
+									setValue("startAddress", place.displayName || place.name || "");
 								}}
-								initialCoordinates={currentLocation}
-								showCurrentLocationOption={true}
+								placeholder="Введите адрес отправления"
+								currentLocation={currentLocation || undefined}
+								showNearbyServices={true}
 							/>
 							{currentLocation && (
 								<Badge className="absolute -top-2 -right-2 bg-green-500 hover:bg-green-500 text-xs">
@@ -184,13 +193,18 @@ export function RouteForm({ onSubmit, isLoading, currentLocation }: RouteFormPro
 							Точка назначения
 						</Label>
 						<div className="relative">
-							<GeocodingInput
-								placeholder="Введите адрес назначения"
-								onLocationSelect={(location) => {
-									setEndCoordinates({ lat: location.lat, lon: location.lon });
-									setValue("endAddress", location.address);
+							<PlaceSearchEnhanced
+								value={watchedValues.endAddress || ""}
+								onChange={(value) => setValue("endAddress", value)}
+								onPlaceSelect={(place: GeoLocationDto) => {
+									const lat = place.latitude || place.lat || 0;
+									const lon = place.longitude || place.lon || 0;
+									setEndCoordinates({ lat, lon });
+									setValue("endAddress", place.displayName || place.name || "");
 								}}
-								showCurrentLocationOption={true}
+								placeholder="Введите адрес назначения"
+								currentLocation={currentLocation || undefined}
+								showNearbyServices={true}
 							/>
 						</div>
 						{errors.endAddress && (
@@ -205,10 +219,10 @@ export function RouteForm({ onSubmit, isLoading, currentLocation }: RouteFormPro
 						<Clock className="h-4 w-4 text-orange-500" />
 						Время отправления
 					</Label>
-					<Input
-						id="departureTime"
-						type="datetime-local"
-						{...register("departureTime")}
+					<DateTimePicker
+						value={watchedValues.departureTime}
+						onChange={(value) => setValue("departureTime", value)}
+						placeholder="Выберите дату и время отправления"
 						className="border-orange-200 focus:border-orange-500 focus:ring-orange-500"
 					/>
 				</div>
@@ -289,21 +303,29 @@ export function RouteForm({ onSubmit, isLoading, currentLocation }: RouteFormPro
 												</span>
 											</div>
 											<div className="flex items-center gap-1">
-												<Fuel className="h-3 w-3 text-orange-500" />
-												<span className="font-medium">
-													{vehicle.fuelConsumption || 0} л/100км
-												</span>
-											</div>
-											<div className="flex items-center gap-1">
 												<Gauge className="h-3 w-3 text-orange-500" />
 												<span className="font-medium">
-													{vehicle.fuelLevel || 0}%
+													{vehicle.fuelConsumptionLper100km ||
+														vehicle.fuelConsumption ||
+														0}{" "}
+													л/100км
 												</span>
+											</div>
+											<div className="flex items-center gap-1 relative">
+												<Battery className="h-3 w-3 text-orange-500" />
+												<span className="font-medium">
+													{vehicle.currentFuelL || vehicle.fuelLevel || 0}
+													{vehicle.currentFuelL ? " л" : "%"}
+												</span>
+												{(vehicle.currentFuelL || vehicle.fuelLevel || 0) <
+													20 && (
+													<AlertTriangle className="h-2 w-2 text-red-500 ml-1" />
+												)}
 											</div>
 											<div className="flex items-center gap-1">
 												<Navigation className="h-3 w-3 text-orange-500" />
 												<span className="font-medium">
-													{vehicle.odometer || 0} км
+													{(vehicle.odometer || 0).toLocaleString()} км
 												</span>
 											</div>
 										</div>
@@ -313,26 +335,46 @@ export function RouteForm({ onSubmit, isLoading, currentLocation }: RouteFormPro
 									<div className="space-y-1 text-xs">
 										<div className="flex justify-between">
 											<span className="text-muted-foreground">
-												Год выпуска:
+												Текущий груз:
 											</span>
 											<span className="font-medium">
-												{vehicle.year || "Н/Д"}
+												{vehicle.currentLoad
+													? `${vehicle.currentLoad} т`
+													: "Пустой"}
 											</span>
 										</div>
 										<div className="flex justify-between">
 											<span className="text-muted-foreground">
-												Тип кузова:
+												Последнее ТО:
 											</span>
-											<span className="font-medium">
-												{vehicle.bodyType || "Стандартный"}
+											<span
+												className={cn(
+													"font-medium",
+													vehicle.maintenanceStatus === "OVERDUE"
+														? "text-red-500"
+														: vehicle.maintenanceStatus === "DUE_SOON"
+															? "text-orange-500"
+															: ""
+												)}
+											>
+												{vehicle.lastMaintenanceDate
+													? new Date(
+															vehicle.lastMaintenanceDate
+														).toLocaleDateString("ru-RU")
+													: "Н/Д"}
 											</span>
 										</div>
 										<div className="flex justify-between">
 											<span className="text-muted-foreground">
-												Объем бака:
+												Местоположение:
 											</span>
-											<span className="font-medium">
-												{vehicle.fuelTankCapacity || 0} л
+											<span
+												className="font-medium truncate max-w-[120px]"
+												title={vehicle.lastKnownLocation || "Неизвестно"}
+											>
+												{vehicle.lastKnownLocation ||
+													vehicle.currentCity ||
+													"Неизвестно"}
 											</span>
 										</div>
 									</div>
@@ -484,21 +526,24 @@ export function RouteForm({ onSubmit, isLoading, currentLocation }: RouteFormPro
 												</span>
 											</div>
 											<div className="flex items-center gap-1">
-												<TrendingUp className="h-3 w-3 text-orange-500" />
+												<Award className="h-3 w-3 text-orange-500" />
 												<span className="font-medium">
-													{driver.experienceYears || 5}+ лет
+													{driver.drivingExperienceYears ||
+														driver.experienceYears ||
+														5}{" "}
+													лет
 												</span>
 											</div>
 											<div className="flex items-center gap-1">
-												<Clock className="h-3 w-3 text-orange-500" />
-												<span className="font-medium">
-													{driver.workingHours || "8"} ч/день
+												<Phone className="h-3 w-3 text-orange-500" />
+												<span className="font-medium truncate max-w-[80px]">
+													{driver.phone || "Не указан"}
 												</span>
 											</div>
 											<div className="flex items-center gap-1">
-												<MapPin className="h-3 w-3 text-orange-500" />
+												<Gauge className="h-3 w-3 text-orange-500" />
 												<span className="font-medium">
-													{driver.totalKm || 0} тыс км
+													{driver.averageFuelConsumption || "25"} л/100км
 												</span>
 											</div>
 										</div>
@@ -508,24 +553,50 @@ export function RouteForm({ onSubmit, isLoading, currentLocation }: RouteFormPro
 									<div className="space-y-1 text-xs">
 										<div className="flex justify-between">
 											<span className="text-muted-foreground">
-												Медосмотр:
+												Текущий статус:
 											</span>
-											<span className="font-medium">
-												{driver.medicalCheckDate ? "Пройден" : "Н/Д"}
-											</span>
+											<div className="flex items-center gap-1">
+												<div
+													className={cn(
+														"w-2 h-2 rounded-full",
+														driver.status === "AVAILABLE" ||
+															driver.status === "ON_DUTY"
+															? "bg-green-500"
+															: driver.status === "DRIVING"
+																? "bg-orange-500"
+																: "bg-red-500"
+													)}
+												/>
+												<span className="font-medium">
+													{driver.status === "AVAILABLE" ||
+													driver.status === "ON_DUTY"
+														? "Доступен"
+														: driver.status === "DRIVING"
+															? "В рейсе"
+															: "Недоступен"}
+												</span>
+											</div>
 										</div>
 										<div className="flex justify-between">
 											<span className="text-muted-foreground">
-												Категории:
+												Часы работы:
 											</span>
 											<span className="font-medium">
-												{driver.licenseCategories?.join(", ") || "B,C"}
+												{driver.workingHours ||
+													driver.currentWorkingHours ||
+													"8"}
+												/12 ч
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-muted-foreground">Телефон:</span>
+											<span className="text-muted-foreground">Пробег:</span>
 											<span className="font-medium">
-												{driver.phone || "Не указан"}
+												{(
+													driver.totalKm ||
+													driver.totalMileage ||
+													0
+												).toLocaleString()}{" "}
+												км
 											</span>
 										</div>
 									</div>
@@ -535,30 +606,36 @@ export function RouteForm({ onSubmit, isLoading, currentLocation }: RouteFormPro
 										<div className="flex items-center justify-between">
 											<Badge
 												variant={
-													driver.status === "AVAILABLE"
+													driver.status === "AVAILABLE" ||
+													driver.status === "ON_DUTY"
 														? "default"
 														: "secondary"
 												}
 												className={cn(
 													"text-xs font-medium",
-													driver.status === "AVAILABLE"
+													driver.status === "AVAILABLE" ||
+														driver.status === "ON_DUTY"
 														? "bg-green-500 hover:bg-green-500 text-white"
-														: ""
+														: driver.status === "DRIVING"
+															? "bg-orange-500 hover:bg-orange-500 text-white"
+															: ""
 												)}
 											>
-												{driver.status === "AVAILABLE"
+												{driver.status === "AVAILABLE" ||
+												driver.status === "ON_DUTY"
 													? "Доступен"
 													: driver.status === "DRIVING"
 														? "В рейсе"
 														: driver.status === "REST"
-															? "Отдых"
+															? "Отдыхает"
 															: "Недоступен"}
 											</Badge>
 											<div className="flex items-center gap-1">
 												<div
 													className={cn(
-														"w-2 h-2 rounded-full",
-														driver.status === "AVAILABLE"
+														"w-2 h-2 rounded-full animate-pulse",
+														driver.status === "AVAILABLE" ||
+															driver.status === "ON_DUTY"
 															? "bg-green-500"
 															: driver.status === "DRIVING"
 																? "bg-orange-500"
@@ -566,7 +643,15 @@ export function RouteForm({ onSubmit, isLoading, currentLocation }: RouteFormPro
 													)}
 												/>
 												<span className="text-xs text-muted-foreground">
-													{driver.lastActivity ? "Активен" : "Статус"}
+													{driver.lastActivity || driver.lastActiveTime
+														? new Date(
+																driver.lastActivity ||
+																	driver.lastActiveTime
+															).toLocaleTimeString("ru-RU", {
+																hour: "2-digit",
+																minute: "2-digit",
+															})
+														: "Н/Д"}
 												</span>
 											</div>
 										</div>
@@ -665,39 +750,6 @@ export function RouteForm({ onSubmit, isLoading, currentLocation }: RouteFormPro
 						</div>
 					)}
 				</Button>
-			</div>
-
-			{/* Дополнительная информация */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-				<div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900 border border-slate-800">
-					<div className="p-2 rounded bg-green-500/20">
-						<Shield className="h-4 w-4 text-green-400" />
-					</div>
-					<div>
-						<div className="text-sm font-medium text-white">Безопасность</div>
-						<div className="text-xs text-slate-400">Контроль рисков</div>
-					</div>
-				</div>
-
-				<div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900 border border-slate-800">
-					<div className="p-2 rounded bg-blue-500/20">
-						<Gauge className="h-4 w-4 text-blue-400" />
-					</div>
-					<div>
-						<div className="text-sm font-medium text-white">Оптимизация</div>
-						<div className="text-xs text-slate-400">Лучший маршрут</div>
-					</div>
-				</div>
-
-				<div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900 border border-slate-800">
-					<div className="p-2 rounded bg-purple-500/20">
-						<Award className="h-4 w-4 text-purple-400" />
-					</div>
-					<div>
-						<div className="text-sm font-medium text-white">Качество</div>
-						<div className="text-xs text-slate-400">99.9% точность</div>
-					</div>
-				</div>
 			</div>
 		</form>
 	);

@@ -156,11 +156,12 @@ export const OPTIMIZATION_STRATEGIES = [
 export { RouteCalculationResult } from './components/route-calculation-result'
 
 // Страницы (публичный API)
-export { default as RoutesPage } from './pages/routes-page';
-export { default as RouteDetailPage } from './pages/route-detail-page';
-export { default as CreateRoutePage } from './pages/create-route-page';
-export { default as RoutePlannerPage } from './pages/route-planner-page';
-export { default as RouteMapPage } from './pages/route-map-page';
+export { RoutesPage } from './pages/routes-page';
+export { RouteDetailPage } from './pages/route-detail-page';
+export { CreateRoutePage } from './pages/create-route-page';
+export { EditRoutePage } from './pages/edit-route-page';
+export { RoutePlannerPage } from './pages/route-planner-page';
+export { RouteMapPage } from './pages/route-map-page';
 
 // Компоненты планировщика (при необходимости)
 // export { RoutePlanner } from './components/route-planner';

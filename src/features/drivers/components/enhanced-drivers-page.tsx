@@ -643,7 +643,7 @@ export function EnhancedDriversPage() {
 																</DropdownMenuItem>
 																<DropdownMenuItem asChild>
 																	<Link
-																		to={`/drivers/${driver.id}/edit`}
+																		to={`/drivers/edit/${driver.id}`}
 																	>
 																		<Edit className="mr-2 h-4 w-4" />
 																		Редактировать
@@ -841,7 +841,7 @@ export function EnhancedDriversPage() {
 																	</DropdownMenuItem>
 																	<DropdownMenuItem asChild>
 																		<Link
-																			to={`/drivers/${driver.id}/edit`}
+																			to={`/drivers/edit/${driver.id}`}
 																		>
 																			<Edit className="mr-2 h-4 w-4" />
 																			Редактировать

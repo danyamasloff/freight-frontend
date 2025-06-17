@@ -36,6 +36,19 @@ const routeFormSchema = z.object({
 	driverId: z.string().optional(),
 	cargoId: z.string().optional(),
 	departureTime: z.string().optional(),
+
+	// Экономические показатели (опциональные)
+	estimatedFuelCost: z.string().optional(),
+	estimatedTollCost: z.string().optional(),
+	estimatedDriverCost: z.string().optional(),
+	currency: z.string().optional(),
+
+	// Флаги автоматического расчета
+	autoCalculateRoute: z.boolean(),
+	autoCalculateEconomics: z.boolean(),
+	autoCalculateRisks: z.boolean(),
+
+	// Параметры расчета
 	avoidTolls: z.boolean(),
 	considerWeather: z.boolean(),
 	considerTraffic: z.boolean(),
@@ -96,6 +109,19 @@ export function RouteCreateForm({
 			driverId: "",
 			cargoId: "",
 			departureTime: "",
+
+			// Экономические показатели
+			estimatedFuelCost: "",
+			estimatedTollCost: "",
+			estimatedDriverCost: "",
+			currency: "RUB",
+
+			// Флаги автоматического расчета
+			autoCalculateRoute: true,
+			autoCalculateEconomics: true,
+			autoCalculateRisks: true,
+
+			// Параметры расчета
 			avoidTolls: false,
 			considerWeather: true,
 			considerTraffic: true,
@@ -407,6 +433,191 @@ export function RouteCreateForm({
 									</FormItem>
 								)}
 							/>
+
+							{/* Автоматические расчеты */}
+							<div className="space-y-3">
+								<Label className="text-sm font-medium text-gray-700">
+									Автоматические расчеты
+								</Label>
+								<div className="space-y-3">
+									<FormField
+										control={form.control}
+										name="autoCalculateRoute"
+										render={({ field }) => (
+											<FormItem className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+												<div>
+													<FormLabel className="text-sm font-medium text-gray-700">
+														Рассчитать маршрут
+													</FormLabel>
+													<p className="text-xs text-gray-500">
+														Автоматически рассчитать расстояние и время
+													</p>
+												</div>
+												<FormControl>
+													<Switch
+														checked={field.value}
+														onCheckedChange={field.onChange}
+														className="data-[state=checked]:bg-orange-500"
+													/>
+												</FormControl>
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name="autoCalculateEconomics"
+										render={({ field }) => (
+											<FormItem className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+												<div>
+													<FormLabel className="text-sm font-medium text-gray-700">
+														Рассчитать экономику
+													</FormLabel>
+													<p className="text-xs text-gray-500">
+														Автоматически рассчитать стоимость топлива и
+														общие затраты
+													</p>
+												</div>
+												<FormControl>
+													<Switch
+														checked={field.value}
+														onCheckedChange={field.onChange}
+														className="data-[state=checked]:bg-orange-500"
+													/>
+												</FormControl>
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name="autoCalculateRisks"
+										render={({ field }) => (
+											<FormItem className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+												<div>
+													<FormLabel className="text-sm font-medium text-gray-700">
+														Анализировать риски
+													</FormLabel>
+													<p className="text-xs text-gray-500">
+														Автоматически оценить погодные и дорожные
+														риски
+													</p>
+												</div>
+												<FormControl>
+													<Switch
+														checked={field.value}
+														onCheckedChange={field.onChange}
+														className="data-[state=checked]:bg-orange-500"
+													/>
+												</FormControl>
+											</FormItem>
+										)}
+									/>
+								</div>
+							</div>
+
+							{/* Экономические показатели (опционально) */}
+							<div className="space-y-3">
+								<Label className="text-sm font-medium text-gray-700">
+									Экономические показатели (опционально)
+								</Label>
+								<p className="text-xs text-gray-500 mb-3">
+									Заполните, если хотите задать конкретные значения вместо
+									автоматического расчета
+								</p>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<FormField
+										control={form.control}
+										name="estimatedFuelCost"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel className="text-sm font-medium text-gray-700">
+													Стоимость топлива
+												</FormLabel>
+												<FormControl>
+													<Input
+														{...field}
+														type="number"
+														step="0.01"
+														placeholder="0.00"
+														className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name="estimatedTollCost"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel className="text-sm font-medium text-gray-700">
+													Стоимость платных дорог
+												</FormLabel>
+												<FormControl>
+													<Input
+														{...field}
+														type="number"
+														step="0.01"
+														placeholder="0.00"
+														className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name="estimatedDriverCost"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel className="text-sm font-medium text-gray-700">
+													Оплата водителя
+												</FormLabel>
+												<FormControl>
+													<Input
+														{...field}
+														type="number"
+														step="0.01"
+														placeholder="0.00"
+														className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name="currency"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel className="text-sm font-medium text-gray-700">
+													Валюта
+												</FormLabel>
+												<Select
+													onValueChange={field.onChange}
+													value={field.value || "RUB"}
+												>
+													<FormControl>
+														<SelectTrigger className="border-gray-300 focus:border-orange-500 focus:ring-orange-500">
+															<SelectValue placeholder="Выберите валюту" />
+														</SelectTrigger>
+													</FormControl>
+													<SelectContent>
+														<SelectItem value="RUB">₽ Рубли</SelectItem>
+														<SelectItem value="USD">
+															$ Доллары
+														</SelectItem>
+														<SelectItem value="EUR">€ Евро</SelectItem>
+													</SelectContent>
+												</Select>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+								</div>
+							</div>
 
 							{/* Настройки маршрута */}
 							<div className="space-y-3">

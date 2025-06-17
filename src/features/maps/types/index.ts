@@ -11,7 +11,7 @@ export interface YandexMapOptions {
 }
 
 export interface YandexRouteOptions {
-  routingMode?: 'driving' | 'walking' | 'transit'
+      routingMode?: 'car' | 'walking' | 'transit'
   avoidTrafficJams?: boolean
   strictBounds?: boolean
 }

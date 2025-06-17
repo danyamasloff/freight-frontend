@@ -1,10 +1,40 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Edit, Route, MapPin, Clock, Truck } from "lucide-react";
+import { ROUTES } from "@/shared/constants";
+import {
+	ArrowLeft,
+	Edit,
+	Route,
+	MapPin,
+	Clock,
+	Truck,
+	User,
+	Package,
+	Fuel,
+	DollarSign,
+	AlertTriangle,
+	Timer,
+	Calendar,
+	Navigation,
+	Gauge,
+	TrendingUp,
+	Shield,
+	Eye,
+	Car,
+	Loader2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import { useGetRouteQuery } from "@/shared/api/routesSlice";
+import { format } from "date-fns";
+import { ru } from "date-fns/locale";
 
 const MOCK_ROUTE = {
 	id: 1,
@@ -153,7 +183,7 @@ export const RouteDetailPage: React.FC = () => {
 							<Button
 								variant="outline"
 								className="w-full"
-								onClick={() => navigate(`/routes/${id}/edit`)}
+								onClick={() => navigate(ROUTES.ROUTE_EDIT.replace(":id", id!))}
 							>
 								<Edit className="h-4 w-4 mr-2" />
 								Редактировать

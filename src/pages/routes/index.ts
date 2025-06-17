@@ -6,11 +6,12 @@ export { RouteDetailAnalytics } from '@/features/routes/components/route-detail-
 export { RouteDetailedAnalytics } from '@/features/routes/components/route-detailed-analytics'
 
 // Страницы маршрутов
-export { RoutesPage } from '@/features/routes';
-export { RouteDetailPage } from '@/features/routes';
-export { RouteMapPage } from '@/features/routes';
-export { CreateRoutePage } from '@/features/routes';
-export { RoutePlannerPage } from '@/features/routes';
+export { RoutesPage } from '@/features/routes/pages/routes-page'
+export { RouteDetailPage } from '@/features/routes/pages/route-detail-page'
+export { CreateRoutePage } from '@/features/routes/pages/create-route-page'
+export { EditRoutePage } from '@/features/routes/pages/edit-route-page'
+export { RoutePlannerPage } from '@/features/routes/pages/route-planner-page'
+export { RouteMapPage } from '@/features/routes/pages/route-map-page'
 
 // Re-export типов для удобства
 export * from '../../features/routes/types'; 

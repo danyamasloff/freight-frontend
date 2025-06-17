@@ -20,6 +20,7 @@ import '@/shared/api/cargoSlice'
 import '@/shared/api/driversSlice'
 import '@/shared/api/vehiclesApiSlice'
 import { weatherApi } from '@/shared/api/weatherSlice'
+import { analyticsApi } from '@/shared/api/analyticsSlice'
 
 const persistConfig = {
     key: 'root',
@@ -31,6 +32,7 @@ const rootReducer = combineReducers({
     api: apiSlice.reducer,
     auth: authSlice.reducer,
     weatherApi: weatherApi.reducer,
+    analyticsApi: analyticsApi.reducer,
 })
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)
@@ -44,7 +46,8 @@ export const store = configureStore({
             },
         }).concat(
             apiSlice.middleware,
-            weatherApi.middleware
+            weatherApi.middleware,
+            analyticsApi.middleware
         ),
     devTools: import.meta.env.VITE_ENABLE_DEV_TOOLS === 'true',
 })

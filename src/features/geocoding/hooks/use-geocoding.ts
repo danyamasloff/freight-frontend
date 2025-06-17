@@ -2,14 +2,14 @@ import { useCallback, useMemo } from 'react'
 import { useGeolocation } from '@/hooks/use-geolocation'
 import {
     useSearchPlacesQuery,
-    useGetFuelStationsQuery,
-    useGetFoodStopsQuery,
-    useGetParkingQuery,
-    useGetLodgingQuery,
-    useGetAtmsQuery,
-    useGetPharmaciesQuery,
-    useGetHospitalsQuery,
-    useGetRestAreasQuery,
+    useFindFuelStationsQuery,
+    useFindFoodStopsQuery,
+    useFindParkingSpotsQuery,
+    useFindLodgingQuery,
+    useFindAtmsQuery,
+    useFindPharmaciesQuery,
+    useFindHospitalsQuery,
+    useFindRestAreasQuery,
 } from '@/shared/api/geocodingSlice'
 import type { POICategory, GeoLocation } from '@/shared/types/api'
 
@@ -31,14 +31,14 @@ export function useGeocoding(options: UseGeocodingOptions = {}) {
     const shouldSkip = !position?.latitude || !position?.longitude
 
     // POI queries - все доступные категории
-    const fuelQuery = useGetFuelStationsQuery(searchParams, { skip: shouldSkip })
-    const foodQuery = useGetFoodStopsQuery(searchParams, { skip: shouldSkip })
-    const parkingQuery = useGetParkingQuery(searchParams, { skip: shouldSkip })
-    const lodgingQuery = useGetLodgingQuery(searchParams, { skip: shouldSkip })
-    const atmsQuery = useGetAtmsQuery(searchParams, { skip: shouldSkip })
-    const pharmaciesQuery = useGetPharmaciesQuery(searchParams, { skip: shouldSkip })
-    const hospitalsQuery = useGetHospitalsQuery(searchParams, { skip: shouldSkip })
-    const restAreasQuery = useGetRestAreasQuery(searchParams, { skip: shouldSkip })
+    const fuelQuery = useFindFuelStationsQuery(searchParams, { skip: shouldSkip })
+    const foodQuery = useFindFoodStopsQuery(searchParams, { skip: shouldSkip })
+    const parkingQuery = useFindParkingSpotsQuery(searchParams, { skip: shouldSkip })
+    const lodgingQuery = useFindLodgingQuery(searchParams, { skip: shouldSkip })
+    const atmsQuery = useFindAtmsQuery(searchParams, { skip: shouldSkip })
+    const pharmaciesQuery = useFindPharmaciesQuery(searchParams, { skip: shouldSkip })
+    const hospitalsQuery = useFindHospitalsQuery(searchParams, { skip: shouldSkip })
+    const restAreasQuery = useFindRestAreasQuery(searchParams, { skip: shouldSkip })
 
     const searchNearbyPOI = useCallback((category: POICategory, radius?: number) => {
         if (!position) return { data: [], isLoading: false, error: null }
@@ -92,19 +92,19 @@ export function useGeocoding(options: UseGeocodingOptions = {}) {
 
         switch (category) {
             case 'fuel':
-                return useGetFuelStationsQuery(params)
+                return useFindFuelStationsQuery(params)
             case 'food':
-                return useGetFoodStopsQuery(params)
+                return useFindFoodStopsQuery(params)
             case 'parking':
-                return useGetParkingQuery(params)
+                return useFindParkingSpotsQuery(params)
             case 'lodging':
-                return useGetLodgingQuery(params)
+                return useFindLodgingQuery(params)
             case 'atms':
-                return useGetAtmsQuery(params)
+                return useFindAtmsQuery(params)
             case 'pharmacies':
-                return useGetPharmaciesQuery(params)
+                return useFindPharmaciesQuery(params)
             case 'hospitals':
-                return useGetHospitalsQuery(params)
+                return useFindHospitalsQuery(params)
             default:
                 return null
         }

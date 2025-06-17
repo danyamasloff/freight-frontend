@@ -198,6 +198,8 @@ export interface DriverDetailBackendDto {
     hasInternationalTransportationPermit?: boolean;
     hourlyRate?: number;
     perKilometerRate?: number;
+    fuelConsumptionLper100km?: number;
+    tollRatePerKm?: number;
     currentDrivingStatus: DrivingStatusEnum;
     currentStatusStartTime?: string;
     dailyDrivingMinutesToday?: number;
@@ -331,7 +333,7 @@ export const transformToBackendRouteRequest = (frontendRequest: Partial<RouteReq
         endLat: frontendRequest.endLat || 0,
         endLon: frontendRequest.endLon || 0,
         // Устанавливаем значения по умолчанию
-        profile: frontendRequest.profile || 'driving',
+        profile: frontendRequest.profile || 'car',
         calcPoints: frontendRequest.calcPoints ?? true,
         instructions: frontendRequest.instructions ?? true,
         pointsEncoded: frontendRequest.pointsEncoded ?? false,

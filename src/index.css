@@ -783,3 +783,308 @@
 	z-index: 9999 !important;
 	position: relative !important;
 }
+
+/* Стили для панели уведомлений */
+.notifications-panel-enter {
+	@apply opacity-0 translate-x-full;
+	transform-origin: right center;
+}
+
+.notifications-panel-enter-active {
+	@apply opacity-100 translate-x-0 transition-all duration-300 ease-out;
+}
+
+.notifications-panel-exit {
+	@apply opacity-100 translate-x-0;
+}
+
+.notifications-panel-exit-active {
+	@apply opacity-0 translate-x-full transition-all duration-300 ease-in;
+}
+
+.notification-item {
+	@apply relative overflow-hidden transition-all duration-300 ease-out;
+}
+
+.notification-item:hover {
+	@apply shadow-lg shadow-primary/10 scale-[1.02];
+}
+
+.notification-item.unread {
+	@apply bg-gradient-to-r from-primary/5 to-transparent border-l-4 border-l-primary;
+}
+
+.notification-item.unread::before {
+	content: "";
+	@apply absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary via-primary/80 to-primary/40;
+}
+
+.notification-icon {
+	@apply flex items-center justify-center rounded-full transition-all duration-200;
+	@apply border-2 border-background shadow-sm hover:scale-110 hover:shadow-md;
+}
+
+.notification-icon.critical {
+	@apply bg-destructive/10 text-destructive border-destructive/20;
+}
+
+.notification-icon.warning {
+	@apply bg-amber-50 text-amber-600 border-amber-200;
+	@apply dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/20;
+}
+
+.notification-icon.info {
+	@apply bg-primary/10 text-primary border-primary/20;
+}
+
+.notification-badge {
+	@apply inline-flex items-center justify-center rounded-full text-xs font-bold;
+	@apply min-w-[1.25rem] h-5 px-1 shadow-lg animate-pulse;
+	@apply bg-destructive text-destructive-foreground border-2 border-background;
+}
+
+.notification-bell {
+	@apply transition-all duration-200 hover:scale-110;
+}
+
+.notification-bell.has-unread {
+	animation: bell-shake 0.5s ease-in-out infinite;
+	animation-iteration-count: 3;
+	animation-delay: 3s;
+}
+
+@keyframes bell-shake {
+	0%,
+	100% {
+		transform: rotate(0deg);
+	}
+	25% {
+		transform: rotate(-10deg);
+	}
+	75% {
+		transform: rotate(10deg);
+	}
+}
+
+.notification-group-header {
+	@apply flex items-center gap-2 px-1 text-sm font-semibold text-muted-foreground;
+}
+
+.notification-group-divider {
+	@apply flex-1 h-px bg-gradient-to-r from-border via-border/50 to-transparent;
+}
+
+.notification-action-button {
+	@apply h-7 w-7 p-0 rounded-full transition-all duration-200;
+	@apply opacity-0 group-hover:opacity-100 hover:scale-110;
+}
+
+.notification-action-button.read {
+	@apply hover:bg-primary/20 hover:text-primary hover:shadow-md;
+}
+
+.notification-action-button.delete {
+	@apply hover:bg-destructive/20 hover:text-destructive hover:shadow-md;
+}
+
+/* Анимации для уведомлений */
+@keyframes notification-slide-in {
+	from {
+		opacity: 0;
+		transform: translateX(-100%) scale(0.95);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0) scale(1);
+	}
+}
+
+@keyframes notification-slide-out {
+	from {
+		opacity: 1;
+		transform: translateX(0) scale(1);
+	}
+	to {
+		opacity: 0;
+		transform: translateX(100%) scale(0.95);
+	}
+}
+
+.notification-enter {
+	animation: notification-slide-in 0.3s ease-out;
+}
+
+.notification-exit {
+	animation: notification-slide-out 0.3s ease-in;
+}
+
+/* Улучшенные тени для карточек уведомлений */
+.notification-card {
+	@apply transition-all duration-300 ease-out;
+	box-shadow: var(--shadow-sm);
+}
+
+.notification-card:hover {
+	box-shadow:
+		var(--shadow-lg),
+		0 0 20px hsl(var(--primary) / 0.1);
+	transform: translateY(-2px);
+}
+
+.notification-card.unread {
+	box-shadow:
+		var(--shadow-md),
+		0 0 20px hsl(var(--primary) / 0.15);
+}
+
+/* DateTimePicker стили */
+.datetime-picker-container {
+	@apply relative;
+}
+
+.datetime-picker-trigger {
+	@apply transition-all duration-200 ease-in-out;
+}
+
+.datetime-picker-trigger:hover {
+	@apply shadow-md border-orange-300;
+}
+
+.datetime-picker-content {
+	@apply animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95;
+}
+
+.datetime-picker-calendar {
+	@apply rounded-lg border-0;
+}
+
+.datetime-picker-time-section {
+	@apply bg-gradient-to-r from-orange-50/50 to-amber-50/50 dark:from-orange-500/5 dark:to-amber-500/5;
+}
+
+/* Расширенные карточки ТС и водителей */
+.vehicle-card-enhanced {
+	@apply transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden cursor-pointer;
+}
+
+.vehicle-card-enhanced.selected {
+	@apply border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-500/10 dark:to-amber-500/10 shadow-lg shadow-orange-500/20;
+}
+
+.vehicle-card-enhanced:hover {
+	@apply border-orange-300 shadow-md shadow-orange-500/10;
+}
+
+.driver-card-enhanced {
+	@apply transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden cursor-pointer;
+}
+
+.driver-card-enhanced.selected {
+	@apply border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-500/10 dark:to-amber-500/10 shadow-lg shadow-orange-500/20;
+}
+
+.driver-card-enhanced:hover {
+	@apply border-orange-300 shadow-md shadow-orange-500/10;
+}
+
+.status-indicator {
+	@apply w-2 h-2 rounded-full transition-all duration-200;
+}
+
+.status-indicator.online {
+	@apply bg-green-500 animate-pulse;
+}
+
+.status-indicator.busy {
+	@apply bg-orange-500 animate-pulse;
+}
+
+.status-indicator.offline {
+	@apply bg-red-500;
+}
+
+.maintenance-warning {
+	@apply text-red-500 font-medium;
+}
+
+.maintenance-due-soon {
+	@apply text-orange-500 font-medium;
+}
+
+.fuel-warning {
+	@apply text-red-500 animate-pulse;
+}
+
+.decorative-element {
+	@apply absolute -bottom-2 -right-2 w-16 h-16 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-500/10 dark:to-amber-500/10 rounded-full opacity-20 group-hover:opacity-30 transition-opacity;
+}
+
+/* PlaceSearchEnhanced улучшения */
+.place-search-enhanced {
+	@apply relative;
+}
+
+.place-search-dropdown-enhanced {
+	@apply absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-orange-200 dark:border-orange-500/30 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto animate-in fade-in-0 slide-in-from-top-2;
+}
+
+.place-search-item {
+	@apply p-3 hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-colors cursor-pointer border-b border-orange-100 dark:border-orange-500/20 last:border-b-0;
+}
+
+.place-search-item:hover {
+	@apply bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-500/10 dark:to-amber-500/10;
+}
+
+.place-search-item.selected {
+	@apply bg-orange-100 dark:bg-orange-500/20;
+}
+
+/* Анимации */
+@keyframes status-pulse {
+	0%,
+	100% {
+		@apply opacity-100;
+	}
+	50% {
+		@apply opacity-60;
+	}
+}
+
+.status-pulse {
+	animation: status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes fuel-warning-blink {
+	0%,
+	100% {
+		@apply opacity-100;
+	}
+	50% {
+		@apply opacity-40;
+	}
+}
+
+.fuel-warning-blink {
+	animation: fuel-warning-blink 1.5s ease-in-out infinite;
+}
+
+/* Responsive стили */
+@media (max-width: 640px) {
+	.notification-item:hover {
+		@apply scale-100;
+	}
+
+	.notification-action-button {
+		@apply opacity-100;
+	}
+
+	.vehicle-card-enhanced,
+	.driver-card-enhanced {
+		@apply hover:scale-100;
+	}
+
+	.datetime-picker-content {
+		@apply w-full;
+	}
+}

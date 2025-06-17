@@ -35,13 +35,45 @@ export interface RouteDetail extends RouteSummary {
         waypointType: string
         stayDurationMinutes?: number
     }>
+    // Время
     departureTime?: string
+    estimatedArrivalTime?: string
+    actualArrivalTime?: string
+    // Экономические показатели
+    estimatedFuelConsumption?: number
+    actualFuelConsumption?: number
     estimatedFuelCost?: number
     estimatedTollCost?: number
+    estimatedDriverCost?: number
     estimatedTotalCost?: number
+    actualTotalCost?: number
+    currency?: string
+    // Анализ рисков
     overallRiskScore?: number
     weatherRiskScore?: number
     roadQualityRiskScore?: number
+    trafficRiskScore?: number
+    cargoRiskScore?: number
+    // Связанные сущности
+    vehicle?: {
+        id: number
+        registrationNumber: string
+        model: string
+        manufacturer?: string
+    }
+    driver?: {
+        id: number
+        firstName: string
+        lastName: string
+        licenseNumber?: string
+    }
+    cargo?: {
+        id: number
+        name: string
+        cargoType?: string
+        weightKg?: number
+    }
+    // Соответствие РТО
     rtoCompliant?: boolean
     rtoWarnings?: string[]
 }
@@ -57,7 +89,13 @@ export interface RouteCreateUpdate {
     vehicleId?: number
     driverId?: number
     cargoId?: number
+    
+    // Время
     departureTime?: string
+    estimatedArrivalTime?: string
+    actualArrivalTime?: string
+    
+    // Промежуточные точки
     waypoints?: Array<{
         name: string
         address: string
@@ -66,6 +104,37 @@ export interface RouteCreateUpdate {
         waypointType: string
         stayDurationMinutes?: number
     }>
+    
+    // Параметры маршрута (могут быть рассчитаны автоматически)
+    distanceKm?: number
+    estimatedDurationMinutes?: number
+    estimatedFuelConsumption?: number
+    actualFuelConsumption?: number
+    
+    // Экономические показатели (могут быть рассчитаны автоматически)
+    estimatedFuelCost?: number
+    estimatedTollCost?: number
+    estimatedDriverCost?: number
+    estimatedTotalCost?: number
+    actualTotalCost?: number
+    currency?: string
+    
+    // Анализ рисков (могут быть рассчитаны автоматически)
+    overallRiskScore?: number // 0-100
+    weatherRiskScore?: number // 0-100
+    roadQualityRiskScore?: number // 0-100
+    trafficRiskScore?: number // 0-100
+    cargoRiskScore?: number // 0-100
+    
+    // Статус маршрута
+    status?: 'DRAFT' | 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DELAYED'
+    
+    // Флаги для автоматического расчета (используются только при создании)
+    autoCalculateRoute?: boolean // Автоматически рассчитать маршрут
+    autoCalculateEconomics?: boolean // Автоматически рассчитать экономику
+    autoCalculateRisks?: boolean // Автоматически рассчитать риски
+    
+    // Дополнительные параметры для расчета
     avoidTolls?: boolean
     considerWeather?: boolean
     considerTraffic?: boolean
@@ -100,8 +169,8 @@ const transformRouteSummary = (route: any): RouteSummary => ({
     name: route.name || `Маршрут ${route.id}`,
     startAddress: route.startAddress || 'Неизвестно',
     endAddress: route.endAddress || 'Неизвестно',
-    distance: route.distance || 0,
-    duration: route.duration || 0,
+    distance: route.distanceKm || route.distance || 0,
+    duration: route.estimatedDurationMinutes || route.duration || 0,
     createdAt: route.createdAt || new Date().toISOString(),
     status: route.status || 'DRAFT',
     vehicleId: route.vehicleId,
@@ -115,12 +184,22 @@ const transformRouteDetail = (route: any): RouteDetail => ({
     instructions: route.instructions || [],
     waypoints: route.waypoints || [],
     departureTime: route.departureTime,
+    estimatedArrivalTime: route.estimatedArrivalTime,
+    actualArrivalTime: route.actualArrivalTime,
     estimatedFuelCost: route.estimatedFuelCost,
     estimatedTollCost: route.estimatedTollCost,
     estimatedTotalCost: route.estimatedTotalCost,
+    estimatedFuelConsumption: route.estimatedFuelConsumption,
+    actualFuelConsumption: route.actualFuelConsumption,
     overallRiskScore: route.overallRiskScore,
     weatherRiskScore: route.weatherRiskScore,
     roadQualityRiskScore: route.roadQualityRiskScore,
+    trafficRiskScore: route.trafficRiskScore,
+    cargoRiskScore: route.cargoRiskScore,
+    currency: route.currency,
+    vehicle: route.vehicle,
+    driver: route.driver,
+    cargo: route.cargo,
     rtoCompliant: route.rtoCompliant,
     rtoWarnings: route.rtoWarnings || [],
 })
@@ -136,7 +215,13 @@ const transformCreateUpdateToBackend = (data: RouteCreateUpdate): any => ({
     vehicleId: data.vehicleId,
     driverId: data.driverId,
     cargoId: data.cargoId,
+    
+    // Время
     departureTime: data.departureTime,
+    estimatedArrivalTime: data.estimatedArrivalTime,
+    actualArrivalTime: data.actualArrivalTime,
+    
+    // Промежуточные точки
     waypoints: data.waypoints?.map(wp => ({
         name: wp.name,
         address: wp.address,
@@ -145,6 +230,37 @@ const transformCreateUpdateToBackend = (data: RouteCreateUpdate): any => ({
         waypointType: wp.waypointType,
         stayDurationMinutes: wp.stayDurationMinutes
     })),
+    
+    // Параметры маршрута
+    distanceKm: data.distanceKm,
+    estimatedDurationMinutes: data.estimatedDurationMinutes,
+    estimatedFuelConsumption: data.estimatedFuelConsumption,
+    actualFuelConsumption: data.actualFuelConsumption,
+    
+    // Экономические показатели
+    estimatedFuelCost: data.estimatedFuelCost,
+    estimatedTollCost: data.estimatedTollCost,
+    estimatedDriverCost: data.estimatedDriverCost,
+    estimatedTotalCost: data.estimatedTotalCost,
+    actualTotalCost: data.actualTotalCost,
+    currency: data.currency,
+    
+    // Анализ рисков
+    overallRiskScore: data.overallRiskScore,
+    weatherRiskScore: data.weatherRiskScore,
+    roadQualityRiskScore: data.roadQualityRiskScore,
+    trafficRiskScore: data.trafficRiskScore,
+    cargoRiskScore: data.cargoRiskScore,
+    
+    // Статус
+    status: data.status,
+    
+    // Флаги автоматического расчета
+    autoCalculateRoute: data.autoCalculateRoute ?? true,
+    autoCalculateEconomics: data.autoCalculateEconomics ?? true,
+    autoCalculateRisks: data.autoCalculateRisks ?? true,
+    
+    // Дополнительные параметры
     avoidTolls: data.avoidTolls,
     considerWeather: data.considerWeather,
     considerTraffic: data.considerTraffic,
@@ -171,7 +287,7 @@ export const routesSlice = apiSlice.injectEndpoints({
                 method: 'POST',
                 body: transformCreateUpdateToBackend(routeData),
             }),
-            invalidatesTags: ['Route'],
+            invalidatesTags: ['Route', 'Notification'],
             transformResponse: transformRouteDetail,
         }),
 
@@ -181,7 +297,7 @@ export const routesSlice = apiSlice.injectEndpoints({
                 method: 'PUT',
                 body: transformCreateUpdateToBackend(data),
             }),
-            invalidatesTags: (result, error, { id }) => [{ type: 'Route', id }],
+            invalidatesTags: (result, error, { id }) => [{ type: 'Route', id }, 'Notification'],
             transformResponse: transformRouteDetail,
         }),
 

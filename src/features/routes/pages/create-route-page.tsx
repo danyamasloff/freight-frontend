@@ -12,9 +12,9 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateRouteMutation } from "@/shared/api/routesSlice";
-import { useGetVehiclesQuery } from "@/shared/api/vehiclesApiSlice";
-import { useGetDriversQuery } from "@/shared/api/driversSlice";
-import { useGetCargosQuery } from "@/shared/api/cargoSlice";
+import { useGetVehiclesWithAvailabilityQuery } from "@/shared/api/vehiclesApiSlice";
+import { useGetDriversWithAvailabilityQuery } from "@/shared/api/driversSlice";
+import { useGetCargosWithAvailabilityQuery } from "@/shared/api/cargoSlice";
 import { YMaps, Map, Placemark, Polyline } from "@pbe/react-yandex-maps";
 import { PlaceSearchEnhanced } from "@/features/geocoding/components/place-search-enhanced";
 import {
@@ -371,9 +371,13 @@ export function CreateRoutePage() {
 	const navigate = useNavigate();
 	const { toast } = useToast();
 	const [createRoute, { isLoading: isCreating }] = useCreateRouteMutation();
-	const { data: vehicles = [], isLoading: vehiclesLoading } = useGetVehiclesQuery();
-	const { data: drivers = [], isLoading: driversLoading } = useGetDriversQuery();
-	const { data: cargos = [], isLoading: cargosLoading } = useGetCargosQuery();
+	const { data: vehicles = [], isLoading: vehiclesLoading } = useGetVehiclesWithAvailabilityQuery(
+		{}
+	);
+	const { data: drivers = [], isLoading: driversLoading } = useGetDriversWithAvailabilityQuery(
+		{}
+	);
+	const { data: cargos = [], isLoading: cargosLoading } = useGetCargosWithAvailabilityQuery({});
 	const [reverseGeocode] = useLazyReverseGeocodeQuery();
 
 	// Form state
@@ -390,7 +394,22 @@ export function CreateRoutePage() {
 		cargoId: undefined,
 		departureTime: new Date().toISOString().slice(0, 16),
 		waypoints: [],
+
+		// Флаги автоматического расчета
+		autoCalculateRoute: true,
+		autoCalculateEconomics: true,
+		autoCalculateRisks: true,
+
+		// Параметры расчета
+		avoidTolls: false,
 		considerWeather: true,
+		considerTraffic: true,
+
+		// Валюта по умолчанию
+		currency: "RUB",
+
+		// Статус по умолчанию
+		status: "DRAFT",
 	});
 
 	const [mapCenter, setMapCenter] = useState([55.7558, 37.6176]);
@@ -1284,13 +1303,16 @@ export function CreateRoutePage() {
 																		<SelectItem
 																			key={vehicle.id}
 																			value={vehicle.id.toString()}
+																			disabled={
+																				!vehicle.isAvailable
+																			}
 																		>
 																			<div className="flex items-center gap-3 py-1">
 																				{getVehicleIcon(
 																					vehicle
 																				)}
 																				<div className="flex-1">
-																					<div className="font-medium">
+																					<div className="font-medium flex items-center gap-2">
 																						{
 																							vehicle.brand
 																						}{" "}
@@ -1301,16 +1323,32 @@ export function CreateRoutePage() {
 																						{
 																							vehicle.licensePlate
 																						}
+																						{!vehicle.isAvailable && (
+																							<Badge
+																								variant="destructive"
+																								className="text-xs"
+																							>
+																								{
+																									vehicle.reasonUnavailable
+																								}
+																							</Badge>
+																						)}
+																						{vehicle.isAvailable && (
+																							<Badge
+																								variant="default"
+																								className="text-xs bg-green-500"
+																							>
+																								Доступен
+																							</Badge>
+																						)}
 																					</div>
 																					<div className="text-sm text-gray-500">
 																						Топливо:{" "}
-																						{
-																							vehicle.currentFuelL
-																						}
+																						{vehicle.currentFuelL ||
+																							0}
 																						л • Пробег:{" "}
-																						{
-																							vehicle.currentOdometerKm
-																						}
+																						{vehicle.currentOdometerKm ||
+																							0}
 																						км
 																					</div>
 																				</div>
@@ -1356,29 +1394,48 @@ export function CreateRoutePage() {
 																		<SelectItem
 																			key={driver.id}
 																			value={driver.id.toString()}
+																			disabled={
+																				!driver.isAvailable
+																			}
 																		>
 																			<div className="flex items-center gap-3 py-1">
 																				{getDriverStatusIcon(
 																					driver.currentDrivingStatus
 																				)}
 																				<div className="flex-1">
-																					<div className="font-medium">
+																					<div className="font-medium flex items-center gap-2">
 																						{
 																							driver.firstName
 																						}{" "}
 																						{
 																							driver.lastName
 																						}
+																						{!driver.isAvailable && (
+																							<Badge
+																								variant="destructive"
+																								className="text-xs"
+																							>
+																								{
+																									driver.reasonUnavailable
+																								}
+																							</Badge>
+																						)}
+																						{driver.isAvailable && (
+																							<Badge
+																								variant="default"
+																								className="text-xs bg-green-500"
+																							>
+																								Доступен
+																							</Badge>
+																						)}
 																					</div>
 																					<div className="text-sm text-gray-500">
 																						Опыт:{" "}
-																						{
-																							driver.drivingExperienceYears
-																						}{" "}
+																						{driver.drivingExperienceYears ||
+																							0}{" "}
 																						лет •{" "}
-																						{
-																							driver.phoneNumber
-																						}
+																						{driver.phoneNumber ||
+																							"Не указан"}
 																					</div>
 																				</div>
 																			</div>
@@ -1423,23 +1480,42 @@ export function CreateRoutePage() {
 																		<SelectItem
 																			key={item.id}
 																			value={item.id.toString()}
+																			disabled={
+																				!item.isAvailable
+																			}
 																		>
 																			<div className="flex items-center gap-3 py-1">
 																				{getCargoIcon(item)}
 																				<div className="flex-1">
-																					<div className="font-medium">
+																					<div className="font-medium flex items-center gap-2">
 																						{item.name ||
 																							item.description}
+																						{!item.isAvailable && (
+																							<Badge
+																								variant="destructive"
+																								className="text-xs"
+																							>
+																								{
+																									item.reasonUnavailable
+																								}
+																							</Badge>
+																						)}
+																						{item.isAvailable && (
+																							<Badge
+																								variant="default"
+																								className="text-xs bg-green-500"
+																							>
+																								Доступен
+																							</Badge>
+																						)}
 																					</div>
 																					<div className="text-sm text-gray-500">
 																						Вес:{" "}
-																						{
-																							item.weightKg
-																						}
+																						{item.weightKg ||
+																							0}
 																						кг • Объем:{" "}
-																						{
-																							item.volumeM3
-																						}
+																						{item.volumeM3 ||
+																							0}
 																						м³
 																					</div>
 																				</div>

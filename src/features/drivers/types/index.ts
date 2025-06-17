@@ -39,6 +39,8 @@ export interface DriverDetail extends DriverSummary {
     dangerousGoodsPermitExpiryDate?: string
     hourlyRate?: number
     kmRate?: number
+    fuelConsumptionLper100km?: number
+    tollRatePerKm?: number
     notes?: string
     workTimeStart?: string
     workTimeEnd?: string
@@ -82,6 +84,8 @@ export const driverFormSchema = z.object({
     dangerousGoodsPermitExpiryDate: z.string().optional(),
     hourlyRate: z.coerce.number().min(0).optional(),
     kmRate: z.coerce.number().min(0).optional(),
+    fuelConsumptionLper100km: z.coerce.number().min(0).optional(),
+    tollRatePerKm: z.coerce.number().min(0).optional(),
     notes: z.string().optional(),
 }).refine(data => {
     if (data.licenseIssueDate && data.licenseExpiryDate) {

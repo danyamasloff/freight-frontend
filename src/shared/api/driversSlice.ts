@@ -26,6 +26,8 @@ const transformDriverDetail = (driver: DriverDetailBackendDto): any => {
         hasInternationalTransportationPermit: driver.hasInternationalTransportationPermit,
         hourlyRate: driver.hourlyRate,
         perKilometerRate: driver.perKilometerRate,
+        fuelConsumptionLper100km: driver.fuelConsumptionLper100km,
+        tollRatePerKm: driver.tollRatePerKm,
         currentDrivingStatus: driver.currentDrivingStatus,
         currentStatusStartTime: driver.currentStatusStartTime,
         dailyDrivingMinutesToday: driver.dailyDrivingMinutesToday,
@@ -71,6 +73,8 @@ const transformToBackendDriver = (frontendDriver: any): Partial<DriverDetailBack
         hasInternationalTransportationPermit: frontendDriver.hasInternationalTransportationPermit || false,
         hourlyRate: frontendDriver.hourlyRate,
         perKilometerRate: frontendDriver.perKilometerRate,
+        fuelConsumptionLper100km: frontendDriver.fuelConsumptionLper100km,
+        tollRatePerKm: frontendDriver.tollRatePerKm,
         currentDrivingStatus: frontendDriver.currentDrivingStatus || DrivingStatusEnum.OFF_DUTY,
         currentStatusStartTime: frontendDriver.currentStatusStartTime,
         dailyDrivingMinutesToday: frontendDriver.dailyDrivingMinutesToday || 0,
@@ -101,7 +105,7 @@ export const driversSlice = apiSlice.injectEndpoints({
                 method: 'POST',
                 body: transformToBackendDriver(driverData),
             }),
-            invalidatesTags: ['Driver'],
+            invalidatesTags: ['Driver', 'Notification'],
             transformResponse: (response: DriverDetailBackendDto) => 
                 transformDriverDetail(response),
         }),
@@ -169,6 +173,47 @@ export const driversSlice = apiSlice.injectEndpoints({
                 response.map(transformDriverSummary),
         }),
 
+        // === Получение доступных водителей для назначения на маршрут ===
+        getAvailableDriversForRoute: builder.query<any[], { excludeRouteId?: number }>({
+            query: ({ excludeRouteId }) => {
+                const params = new URLSearchParams();
+                if (excludeRouteId) {
+                    params.append('excludeRouteId', excludeRouteId.toString());
+                }
+                return `/drivers/available-for-route?${params}`;
+            },
+            providesTags: ['Driver'],
+            transformResponse: (response: DriverSummaryBackendDto[]) => 
+                response.map((driver) => ({
+                    ...transformDriverSummary(driver),
+                    isAvailable: true,
+                    assignedRouteId: null,
+                    reasonUnavailable: null
+                })),
+        }),
+
+        // === Получение всех водителей с информацией о доступности ===
+        getDriversWithAvailability: builder.query<any[], { forRouteId?: number }>({
+            query: ({ forRouteId }) => {
+                const params = new URLSearchParams();
+                if (forRouteId) {
+                    params.append('forRouteId', forRouteId.toString());
+                }
+                return `/drivers/with-availability?${params}`;
+            },
+            providesTags: ['Driver'],
+            transformResponse: (response: any[]) => 
+                response.map((driver) => ({
+                    ...transformDriverSummary(driver),
+                    isAvailable: driver.currentDrivingStatus === 'AVAILABILITY' || driver.currentDrivingStatus === 'OFF_DUTY',
+                    assignedRouteId: driver.assignedRouteId || null,
+                    reasonUnavailable: driver.assignedRouteId ? `занят маршрутом №${driver.assignedRouteId}` : 
+                                     driver.currentDrivingStatus === 'DRIVING' ? 'в рейсе' :
+                                     driver.currentDrivingStatus === 'REST_BREAK' ? 'на отдыхе' :
+                                     driver.currentDrivingStatus === 'DAILY_REST' ? 'суточный отдых' : null
+                })),
+        }),
+
         // === Упрощенное обновление статуса водителя ===
         updateDriverStatus: builder.mutation<any, { 
             driverId: number; 
@@ -212,6 +257,8 @@ export const {
     useUpdateLocationMutation,
     useGetDriversByStatusQuery,
     useGetAvailableDriversQuery,
+    useGetAvailableDriversForRouteQuery,
+    useGetDriversWithAvailabilityQuery,
     useUpdateDriverStatusMutation,
     useAnalyzeRouteRestTimeMutation,
 } = driversSlice;

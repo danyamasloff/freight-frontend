@@ -435,7 +435,7 @@ export function FleetPage() {
 															</Link>
 														</DropdownMenuItem>
 														<DropdownMenuItem asChild>
-															<Link to={`/fleet/${vehicle.id}/edit`}>
+															<Link to={`/fleet/edit/${vehicle.id}`}>
 																<Edit className="mr-2 h-4 w-4" />
 																Редактировать
 															</Link>

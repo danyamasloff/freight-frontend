@@ -54,6 +54,11 @@ import { useGetNotificationsQuery } from "@/shared/api/notificationsSlice";
 import { useGetRoutesQuery } from "@/shared/api/routesSlice";
 import { useGetVehiclesQuery } from "@/shared/api/vehiclesApiSlice";
 import { useGetDriversQuery } from "@/shared/api/driversSlice";
+import {
+	useGetCompanyAnalyticsQuery,
+	useGetDriversAnalyticsQuery,
+	useGetRoutesAnalyticsQuery,
+} from "@/shared/api/analyticsSlice";
 import { formatCurrency, formatDistance, formatDuration } from "@/shared/utils/format";
 
 interface AnalyticsData {
@@ -117,58 +122,95 @@ export function EnhancedAnalyticsPage() {
 	const { data: vehicles = [], isLoading: vehiclesLoading } = useGetVehiclesQuery();
 	const { data: drivers = [], isLoading: driversLoading } = useGetDriversQuery();
 
+	// Аналитические данные из API
+	const { data: companyAnalytics, isLoading: companyAnalyticsLoading } =
+		useGetCompanyAnalyticsQuery({
+			period: timePeriod,
+		});
+	const { data: driversAnalytics, isLoading: driversAnalyticsLoading } =
+		useGetDriversAnalyticsQuery({
+			period: timePeriod,
+			limit: 5,
+		});
+	const { data: routesAnalytics, isLoading: routesAnalyticsLoading } = useGetRoutesAnalyticsQuery(
+		{
+			period: timePeriod,
+			limit: 5,
+		}
+	);
+
+	const allDataLoading =
+		routesLoading ||
+		vehiclesLoading ||
+		driversLoading ||
+		companyAnalyticsLoading ||
+		driversAnalyticsLoading ||
+		routesAnalyticsLoading;
+
 	useEffect(() => {
-		if (!routesLoading && !vehiclesLoading && !driversLoading) {
+		if (!allDataLoading) {
 			generateAnalyticsData();
 		}
-	}, [routes, vehicles, drivers, timePeriod, routesLoading, vehiclesLoading, driversLoading]);
+	}, [
+		routes,
+		vehicles,
+		drivers,
+		companyAnalytics,
+		driversAnalytics,
+		routesAnalytics,
+		timePeriod,
+		allDataLoading,
+	]);
 
 	const generateAnalyticsData = () => {
 		setIsLoading(true);
 
-		// Симулируем обработку данных
+		// Используем реальные данные из API или fallback на вычисленные данные
 		setTimeout(() => {
 			const data: AnalyticsData = {
-				revenue: {
+				revenue: companyAnalytics?.revenue || {
 					current: calculateTotalRevenue(),
 					previous: calculateTotalRevenue() * 0.85,
 					change: 17.4,
 				},
-				costs: {
+				costs: companyAnalytics?.costs || {
 					current: calculateTotalCosts(),
 					previous: calculateTotalCosts() * 0.9,
 					change: 10.4,
 				},
-				profit: {
+				profit: companyAnalytics?.profit || {
 					current: calculateTotalRevenue() - calculateTotalCosts(),
 					previous: (calculateTotalRevenue() - calculateTotalCosts()) * 0.8,
 					change: 31.3,
 				},
-				efficiency: {
+				efficiency: companyAnalytics?.efficiency || {
 					fuelConsumption: calculateAverageFuelConsumption(),
 					onTimeDeliveries: 94.5,
 					vehicleUtilization: calculateVehicleUtilization(),
 					driverUtilization: calculateDriverUtilization(),
 				},
-				routeAnalytics: generateRouteAnalytics(),
-				driverPerformance: generateDriverPerformance(),
-				monthlyData: generateMonthlyData(),
+				routeAnalytics: routesAnalytics?.routes || generateRouteAnalytics(),
+				driverPerformance: driversAnalytics?.drivers || generateDriverPerformance(),
+				monthlyData: companyAnalytics?.monthlyData || generateMonthlyData(),
 			};
 
 			setAnalyticsData(data);
 			setIsLoading(false);
-		}, 1000);
+		}, 500); // Уменьшил задержку, так как данные уже загружены
 	};
 
 	const calculateTotalRevenue = () => {
 		return routes.reduce((total, route) => {
-			return total + (route.estimatedCost || 0) * 1.3; // Добавляем маржу
+			// Используем estimatedTotalCost из маршрута с маржой
+			const cost = route.estimatedTotalCost || 0;
+			return total + cost * 1.3; // Добавляем маржу
 		}, 0);
 	};
 
 	const calculateTotalCosts = () => {
 		return routes.reduce((total, route) => {
-			return total + (route.estimatedCost || 0);
+			// Используем estimatedTotalCost из маршрута
+			return total + (route.estimatedTotalCost || 0);
 		}, 0);
 	};
 
@@ -207,9 +249,9 @@ export function EnhancedAnalyticsPage() {
 				};
 			}
 			acc[key].frequency += 1;
-			acc[key].totalRevenue += (route.estimatedCost || 0) * 1.3;
-			acc[key].totalDistance += route.distance || 0;
-			acc[key].totalDuration += route.duration || 0;
+			acc[key].totalRevenue += (route.estimatedTotalCost || 0) * 1.3;
+			acc[key].totalDistance += route.distanceKm || 0;
+			acc[key].totalDuration += route.estimatedDurationMinutes || 0;
 			return acc;
 		}, {} as any);
 
@@ -268,7 +310,7 @@ export function EnhancedAnalyticsPage() {
 		console.log("Notification clicked:", notification);
 	};
 
-	if (isLoading) {
+	if (isLoading || allDataLoading) {
 		return (
 			<div className="container py-8">
 				<div className="flex items-center justify-center min-h-96">

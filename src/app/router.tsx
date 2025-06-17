@@ -13,11 +13,13 @@ import {
 	RoutePlannerPage,
 	RouteMapPage,
 } from "@/pages/routes";
+import { EditRoutePage } from "@/features/routes/pages/edit-route-page";
 import { DriversPage, DriverDetailPage, CreateDriverPage, EditDriverPage } from "@/pages/drivers";
 import { AnalyticsPage } from "@/pages/analytics";
 import { CompliancePage } from "@/pages/compliance";
 import { FleetPage, VehicleDetailsPage, CreateVehiclePage, EditVehiclePage } from "@/pages/fleet";
 import { CargoPage, CargoDetailPage, CreateCargoPage } from "@/pages/cargo";
+import { EditCargoPage } from "@/features/cargo";
 import { ROUTES } from "@/shared/constants";
 import {
 	NotFoundPage,
@@ -48,6 +50,7 @@ export function AppRouter() {
 				<Route path={ROUTES.ROUTES} element={<RoutesPage />} />
 				<Route path={ROUTES.ROUTE_DETAILS} element={<RouteDetailPage />} />
 				<Route path={ROUTES.ROUTE_CREATE} element={<CreateRoutePage />} />
+				<Route path={ROUTES.ROUTE_EDIT} element={<EditRoutePage />} />
 				<Route path={ROUTES.ROUTE_PLANNER} element={<RoutePlannerPage />} />
 				<Route path="routes/map" element={<RouteMapPage />} />
 
@@ -67,6 +70,7 @@ export function AppRouter() {
 				<Route path={ROUTES.CARGO} element={<CargoPage />} />
 				<Route path={ROUTES.CARGO_DETAILS} element={<CargoDetailPage />} />
 				<Route path={ROUTES.CARGO_CREATE} element={<CreateCargoPage />} />
+				<Route path={ROUTES.CARGO_EDIT} element={<EditCargoPage />} />
 
 				{/* Аналитика */}
 				<Route path={ROUTES.ANALYTICS} element={<AnalyticsPage />} />
