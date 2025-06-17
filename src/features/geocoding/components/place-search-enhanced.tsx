@@ -121,39 +121,48 @@ export function PlaceSearchEnhanced({
 	const getCurrentLocation = (): Promise<{ lat: number; lon: number }> => {
 		return new Promise((resolve, reject) => {
 			if (!navigator.geolocation) {
-				// Fallback на центр Москвы
-				resolve({ lat: 55.7558, lon: 37.6176 });
+				console.warn("Геолокация не поддерживается, используем центр Москвы");
+				const fallbackLocation = { lat: 55.7558, lon: 37.6176 };
+				setUserLocation(fallbackLocation);
+				resolve(fallbackLocation);
 				return;
 			}
 
-			navigator.geolocation.getCurrentPosition(
-				(position) => {
-					const location = {
-						lat: position.coords.latitude,
-						lon: position.coords.longitude,
-					};
-					setUserLocation(location);
-					resolve(location);
-				},
-				(error) => {
-					console.warn("Не удалось получить местоположение:", error);
-					// Fallback на центр Москвы
-					const fallbackLocation = { lat: 55.7558, lon: 37.6176 };
-					setUserLocation(fallbackLocation);
-					resolve(fallbackLocation);
-				},
-				{
-					enableHighAccuracy: true,
-					timeout: 10000,
-					maximumAge: 300000, // 5 минут
-				}
-			);
+			try {
+				navigator.geolocation.getCurrentPosition(
+					(position) => {
+						const location = {
+							lat: position.coords.latitude,
+							lon: position.coords.longitude,
+						};
+						setUserLocation(location);
+						resolve(location);
+					},
+					(error) => {
+						console.warn("Не удалось получить местоположение:", error.message);
+						// Fallback на центр Москвы
+						const fallbackLocation = { lat: 55.7558, lon: 37.6176 };
+						setUserLocation(fallbackLocation);
+						resolve(fallbackLocation);
+					},
+					{
+						enableHighAccuracy: false, // Отключаем высокую точность для избежания ошибок
+						timeout: 10000,
+						maximumAge: 300000, // 5 минут
+					}
+				);
+			} catch (error) {
+				console.warn("Ошибка при запросе геолокации:", error);
+				const fallbackLocation = { lat: 55.7558, lon: 37.6176 };
+				setUserLocation(fallbackLocation);
+				resolve(fallbackLocation);
+			}
 		});
 	};
 
 	// Поиск мест при изменении значения
 	useEffect(() => {
-		if (debouncedValue.length >= 2 && !selectedService) {
+		if (debouncedValue && debouncedValue.length >= 2 && !selectedService) {
 			handleSearch(debouncedValue);
 		}
 	}, [debouncedValue, selectedService]);
@@ -182,7 +191,7 @@ export function PlaceSearchEnhanced({
 	}, []);
 
 	const handleSearch = async (query: string) => {
-		if (query.length < 2) return;
+		if (!query || query.length < 2) return;
 
 		setIsLoading(true);
 		try {
@@ -282,7 +291,8 @@ export function PlaceSearchEnhanced({
 	};
 
 	const handlePlaceClick = (place: GeoLocationDto) => {
-		onChange(place.displayName);
+		const placeName = place.displayName || place.name || "Неизвестное место";
+		onChange(placeName);
 		onPlaceSelect(place);
 		setIsOpen(false);
 		setSelectedService(null);
@@ -424,13 +434,13 @@ export function PlaceSearchEnhanced({
 				<Input
 					ref={inputRef}
 					type="text"
-					value={value}
-					onChange={(e) => onChange(e.target.value)}
+					value={value || ""}
+					onChange={(e) => onChange(e.target.value || "")}
 					onFocus={() => setIsOpen(true)}
 					placeholder={placeholder}
 					className="pl-10 pr-10 bg-white/80 backdrop-blur-sm border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
 				/>
-				{value && (
+				{value && value.length > 0 && (
 					<Button
 						type="button"
 						variant="ghost"
@@ -524,7 +534,7 @@ export function PlaceSearchEnhanced({
 						)}
 
 						{/* Header for text search */}
-						{!selectedService && value.length >= 2 && (
+						{!selectedService && value && value.length >= 2 && (
 							<div className="p-3 bg-blue-50 border-b border-blue-200">
 								<div className="flex items-center gap-2">
 									<Search className="h-4 w-4 text-blue-600" />
@@ -543,6 +553,8 @@ export function PlaceSearchEnhanced({
 
 							if (place.displayName) {
 								placeName = place.displayName;
+							} else if (place.name) {
+								placeName = place.name;
 							} else if (place.address) {
 								if (typeof place.address === "string") {
 									placeName = place.address;
@@ -558,7 +570,9 @@ export function PlaceSearchEnhanced({
 							// Безопасное формирование адреса
 							let placeAddress = "";
 
-							if (place.address && typeof place.address === "object") {
+							if (place.description && place.description !== placeName) {
+								placeAddress = place.description;
+							} else if (place.address && typeof place.address === "object") {
 								const addressParts = [];
 								if (place.address.road && place.address.road !== placeName) {
 									addressParts.push(place.address.road);
@@ -583,27 +597,30 @@ export function PlaceSearchEnhanced({
 								(userLocation && userLocation.lat && userLocation.lon) ||
 								(currentLocation && currentLocation.lat && currentLocation.lon);
 
-							if (hasLocation && place.lat && place.lon) {
+							const placeLat = place.latitude || place.lat;
+							const placeLon = place.longitude || place.lon;
+
+							if (hasLocation && placeLat && placeLon) {
 								const refLocation = userLocation || currentLocation;
 								if (
 									refLocation &&
 									!isNaN(refLocation.lat) &&
 									!isNaN(refLocation.lon) &&
-									!isNaN(place.lat) &&
-									!isNaN(place.lon)
+									!isNaN(placeLat) &&
+									!isNaN(placeLon)
 								) {
 									distance = calculateDistance(
 										refLocation.lat,
 										refLocation.lon,
-										place.lat,
-										place.lon
+										placeLat,
+										placeLon
 									);
 								}
 							}
 
 							return (
 								<motion.div
-									key={`${place.lat}-${place.lon}-${index}`}
+									key={`${placeLat}-${placeLon}-${index}`}
 									initial={{ opacity: 0, x: -20 }}
 									animate={{ opacity: 1, x: 0 }}
 									transition={{ delay: index * 0.05 }}
@@ -647,7 +664,7 @@ export function PlaceSearchEnhanced({
 			{isOpen &&
 				!isLoading &&
 				(!places || places.length === 0) &&
-				(value.length >= 2 || selectedService) && (
+				((value && value.length >= 2) || selectedService) && (
 					<motion.div
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}

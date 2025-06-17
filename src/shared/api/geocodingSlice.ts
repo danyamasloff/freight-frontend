@@ -7,13 +7,20 @@ export interface GeoPoint {
 }
 
 export interface GeoLocationDto {
-    lat: number;
-    lon: number;
-    displayName: string;
+    id?: number;
+    name: string;
+    description?: string;
+    latitude: number;
+    longitude: number;
+    type?: string;
+    provider?: string;
+    // Добавляем поля для обратной совместимости
+    lat?: number;
+    lon?: number;
+    displayName?: string;
     osmId?: string;
     osmType?: string;
     category?: string;
-    type?: string;
     importance?: number;
     icon?: string;
     address?: {

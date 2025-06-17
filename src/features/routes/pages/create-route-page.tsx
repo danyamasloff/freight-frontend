@@ -424,7 +424,7 @@ export function CreateRoutePage() {
 			y: 0,
 			transition: {
 				duration: 0.5,
-				ease: "easeOut",
+				ease: "easeOut" as const,
 			},
 		},
 	};
@@ -436,7 +436,7 @@ export function CreateRoutePage() {
 			scale: 1,
 			transition: {
 				duration: 0.3,
-				ease: "easeOut",
+				ease: "easeOut" as const,
 			},
 		},
 		hover: {
@@ -475,22 +475,34 @@ export function CreateRoutePage() {
 	const getCurrentLocation = (): Promise<{ lat: number; lon: number }> => {
 		return new Promise((resolve, reject) => {
 			if (!navigator.geolocation) {
-				reject(new Error("Геолокация не поддерживается"));
+				console.warn("Геолокация не поддерживается, используем центр Москвы");
+				resolve({ lat: 55.7558, lon: 37.6176 });
 				return;
 			}
 
-			navigator.geolocation.getCurrentPosition(
-				(position) => {
-					resolve({
-						lat: position.coords.latitude,
-						lon: position.coords.longitude,
-					});
-				},
-				(error) => {
-					// Если не удалось получить местоположение, используем центр Москвы
-					resolve({ lat: 55.7558, lon: 37.6176 });
-				}
-			);
+			try {
+				navigator.geolocation.getCurrentPosition(
+					(position) => {
+						resolve({
+							lat: position.coords.latitude,
+							lon: position.coords.longitude,
+						});
+					},
+					(error) => {
+						console.warn("Не удалось получить местоположение:", error.message);
+						// Если не удалось получить местоположение, используем центр Москвы
+						resolve({ lat: 55.7558, lon: 37.6176 });
+					},
+					{
+						enableHighAccuracy: false, // Отключаем высокую точность для избежания ошибок
+						timeout: 10000,
+						maximumAge: 300000, // 5 минут
+					}
+				);
+			} catch (error) {
+				console.warn("Ошибка при запросе геолокации:", error);
+				resolve({ lat: 55.7558, lon: 37.6176 });
+			}
 		});
 	};
 
@@ -504,13 +516,15 @@ export function CreateRoutePage() {
 				lon: location.lon,
 			}).unwrap();
 
+			const address = addressResult.displayName || addressResult.name || "";
+
 			setFormData((prev) => ({
 				...prev,
 				startLat: location.lat,
 				startLon: location.lon,
-				startAddress: addressResult.displayName,
+				startAddress: address,
 			}));
-			setStartSearch(addressResult.displayName);
+			setStartSearch(address);
 			setMapCenter([location.lat, location.lon]);
 
 			toast({
@@ -563,28 +577,40 @@ export function CreateRoutePage() {
 	};
 
 	const handleStartPlaceSelect = (place: GeoLocationDto) => {
+		const lat = place.latitude || place.lat || 0;
+		const lon = place.longitude || place.lon || 0;
+		const address = place.displayName || place.name || "";
+
 		setFormData((prev) => ({
 			...prev,
-			startLat: place.lat,
-			startLon: place.lon,
-			startAddress: place.displayName,
+			startLat: lat,
+			startLon: lon,
+			startAddress: address,
 		}));
-		setMapCenter([place.lat, place.lon]);
+		setMapCenter([lat, lon]);
 	};
 
 	const handleEndPlaceSelect = (place: GeoLocationDto) => {
+		const lat = place.latitude || place.lat || 0;
+		const lon = place.longitude || place.lon || 0;
+		const address = place.displayName || place.name || "";
+
 		setFormData((prev) => ({
 			...prev,
-			endLat: place.lat,
-			endLon: place.lon,
-			endAddress: place.displayName,
+			endLat: lat,
+			endLon: lon,
+			endAddress: address,
 		}));
 	};
 
 	const handleWaypointPlaceSelect = (index: number, place: GeoLocationDto) => {
-		handleUpdateWaypoint(index, "latitude", place.lat);
-		handleUpdateWaypoint(index, "longitude", place.lon);
-		handleUpdateWaypoint(index, "address", place.displayName);
+		const lat = place.latitude || place.lat || 0;
+		const lon = place.longitude || place.lon || 0;
+		const address = place.displayName || place.name || "";
+
+		handleUpdateWaypoint(index, "latitude", lat);
+		handleUpdateWaypoint(index, "longitude", lon);
+		handleUpdateWaypoint(index, "address", address);
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
